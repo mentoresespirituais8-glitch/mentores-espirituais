@@ -29,6 +29,12 @@ services:
         value: sqlite:///./mentores.db
       - key: VECTOR_STORE_PATH
         value: ./data/vector_store
+      - key: EMBEDDINGS_ENABLED
+        # O modelo de embeddings (fastembed/onnxruntime) não cabe nos 512MB
+        # do plano gratuito — o serviço caía com 503 ao primeiro chat. Com
+        # false, o RAG usa a pesquisa por palavra-chave (mais leve). Voltar a
+        # true se o serviço for promovido a um plano com >=2GB de RAM.
+        value: "false"
       - key: CORS_ORIGINS
         # Preencher no dashboard do Render depois de saber o domínio do
         # Vercel, ex: ["https://mentores-espirituais.vercel.app"]

@@ -26,6 +26,15 @@ def _get_model():
     global _model, _load_failed
     if _model is not None or _load_failed:
         return _model
+    # Ambientes com pouca memória (ex. Render free, 512MB) definem
+    # EMBEDDINGS_ENABLED=false — o carregamento do modelo esgotava a RAM e o
+    # serviço caía com 503 ao primeiro chat. Sem modelo, service.py cai
+    # automaticamente para a pesquisa por palavra-chave (mais leve).
+    from app.core.config import get_settings
+
+    if not get_settings().embeddings_enabled:
+        _load_failed = True
+        return None
     try:
         from fastembed import TextEmbedding
 

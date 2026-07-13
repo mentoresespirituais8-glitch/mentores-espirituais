@@ -55,6 +55,29 @@ export interface SynthesisMentorSummary {
 const API_ORIGIN = import.meta.env.VITE_API_BASE_URL ?? "";
 const BASE = API_ORIGIN ? API_ORIGIN : "/api";
 
+// O backend publicado corre no nível gratuito do Render, que "adormece" o
+// serviço após ~15 min sem visitas — o primeiro pedido a seguir demora até
+// um minuto (ou falha ao nível da rede enquanto o serviço arranca). Sem
+// isto, o utilizador via um "Failed to fetch" críptico em inglês.
+const WAKE_MESSAGE =
+  "O mentor está a acordar — o servidor adormece quando ninguém o visita. " +
+  "Aguarda um minuto e tenta novamente.";
+
+async function safeFetch(input: string, init?: RequestInit): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(input, init);
+  } catch {
+    // Falha de rede (servidor a arrancar, sem internet, CORS de página de
+    // erro) — mensagem amigável em vez do TypeError do browser.
+    throw new Error(WAKE_MESSAGE);
+  }
+  if (res.status === 502 || res.status === 503 || res.status === 504) {
+    throw new Error(WAKE_MESSAGE);
+  }
+  return res;
+}
+
 /** audio_url vem do backend como caminho relativo (/static/audio/x.mp3).
  * Em dev isso basta (proxy do Vite); em produção tem de apontar para o
  * domínio real do backend. */
@@ -64,13 +87,13 @@ export function resolveAudioUrl(audioUrl: string): string {
 }
 
 export async function fetchPersonas(): Promise<PersonaSummary[]> {
-  const res = await fetch(`${BASE}/personas`);
+  const res = await safeFetch(`${BASE}/personas`);
   if (!res.ok) throw new Error("Falha ao carregar mentores");
   return res.json();
 }
 
 export async function fetchSynthesizedMentors(): Promise<SynthesisMentorSummary[]> {
-  const res = await fetch(`${BASE}/personas/mentores/sintetizados`);
+  const res = await safeFetch(`${BASE}/personas/mentores/sintetizados`);
   if (!res.ok) throw new Error("Falha ao carregar mentores sintetizados");
   return res.json();
 }
@@ -115,7 +138,7 @@ export async function sendChatMessage(
   sessionId: string | null,
   kind: "persona" | "mentor" = "persona"
 ): Promise<ChatResponse> {
-  const res = await fetch(`${BASE}/chat/${kind}/${personaId}`, {
+  const res = await safeFetch(`${BASE}/chat/${kind}/${personaId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, session_id: sessionId }),

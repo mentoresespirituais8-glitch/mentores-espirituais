@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     # Vector store para RAG (persona knowledge base)
     vector_store_path: str = "./data/vector_store"
 
+    # Embeddings semânticos (fastembed/onnxruntime) para o RAG. Em máquinas
+    # com pouca memória (ex. Render free, 512MB) o modelo esgota a RAM e o
+    # serviço cai com 503 ao primeiro chat — definir EMBEDDINGS_ENABLED=false
+    # nesses ambientes para usar a pesquisa por palavra-chave (mais leve).
+    embeddings_enabled: bool = True
+
     cors_origins: list[str] = ["http://localhost:5173"]
 
     # Limite de pedidos de chat — protege a chave de API (nível gratuito,

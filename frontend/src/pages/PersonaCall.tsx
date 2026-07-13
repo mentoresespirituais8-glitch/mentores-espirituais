@@ -119,7 +119,13 @@ export default function PersonaCall() {
 
         setLoadError("Mentor não encontrado.");
       })
-      .catch(() => setLoadError("Não foi possível ligar ao backend. Confirma que está a correr em http://localhost:8000."));
+      .catch((err) =>
+        setLoadError(
+          err instanceof Error && err.message
+            ? err.message
+            : "Não foi possível ligar ao mentor. Tenta novamente daqui a um minuto."
+        )
+      );
   }, [personaId]);
 
   useEffect(() => {
@@ -259,6 +265,11 @@ export default function PersonaCall() {
     return (
       <main className="call-page">
         <p>{loadError ?? "A carregar mentor…"}</p>
+        {loadError && (
+          <button type="button" onClick={() => window.location.reload()}>
+            Tentar novamente
+          </button>
+        )}
         <Link to="/">Voltar</Link>
       </main>
     );
@@ -281,11 +292,18 @@ export default function PersonaCall() {
           <div className="avatar-wrapper" ref={avatarWrapperRef}>
             <div className={`avatar-frame ${connecting ? "avatar-connecting" : ""}`}>
               <div className="avatar-kenburns">
-                <Avatar
-                  assetPath={target.avatarAsset}
-                  name={target.display_name}
-                  className={`avatar-circle ${speaking ? "avatar-speaking" : listening ? "avatar-listening" : "avatar-idle"}`}
-                />
+                {/* Camada extra "cabeça": oscilação lenta e subtil enquanto o
+                    mentor fala (rotação com origem na zona do pescoço), por
+                    cima do Ken Burns — dá a sensação de uma pessoa que se
+                    mexe naturalmente ao falar, não uma foto que só pulsa. */}
+                <div className={`avatar-head ${speaking ? "avatar-head-speaking" : ""}`}>
+                  <Avatar
+                    assetPath={target.avatarAsset}
+                    name={target.display_name}
+                    eager
+                    className={`avatar-circle ${speaking ? "avatar-speaking" : listening ? "avatar-listening" : "avatar-idle"}`}
+                  />
+                </div>
               </div>
               {target.avatarAsset && !connecting && <span className="avatar-blink" aria-hidden="true" />}
               {target.avatarAsset && speaking && <span className="avatar-mouth" aria-hidden="true" />}
