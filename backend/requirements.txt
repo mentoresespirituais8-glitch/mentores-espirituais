@@ -1,0 +1,25 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.13.4
+email-validator==2.3.0
+pydantic-settings==2.7.0
+# Sem pin exato de patch — o SDK do Gemini lança versões com frequência e
+# uma versão futura específica pode deixar de existir no PyPI. Note-se que
+# instalar isto atualiza automaticamente o pydantic acima (dependência
+# transitiva do google-genai exige uma versão mais recente).
+google-genai>=1.0.0
+sqlalchemy==2.0.36
+python-dotenv==1.0.1
+
+# Recuperação semântica multilingue (app/personas/embeddings.py). Requer o
+# Visual C++ Redistributable mais recente no Windows para o onnxruntime
+# carregar (winget install Microsoft.VCRedist.2015+.x64). Se a instalação
+# ou o download do modelo falhar, o backend cai automaticamente para a
+# pesquisa por palavra-chave (ver app/personas/service.py).
+fastembed==0.8.0
+
+# Texto-para-fala das respostas do mentor sintetizado (app/chat/router.py).
+gtts==2.5.4
+
+# Testes
+pytest==9.1.1

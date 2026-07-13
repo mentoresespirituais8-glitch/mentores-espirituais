@@ -1,0 +1,32 @@
+# Backend (Python)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.env
+backend/mentores.db
+backend/mentores.db-journal
+backend/data/vector_store/
+backend/app/takedown/data/
+backend/.pytest_cache/
+backend/static/audio/
+
+# Artefactos criados por engano na raiz quando o backend arranca sem "cd" para
+# backend/ primeiro (ver correção em app/core/config.py) — não deviam
+# reaparecer, mas ficam aqui ignorados por segurança.
+/mentores.db
+/static/
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.production
+
+# Estado interno do Claude Code — específico desta máquina/sessão, não faz
+# parte do código do projeto.
+.claude/scheduled_tasks.lock
+
+# Atalhos do Windows (específicos desta máquina)
+*.lnk
+
+.DS_Store

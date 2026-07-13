@@ -1,0 +1,35 @@
+# Blueprint do Render (https://render.com/docs/blueprint-spec) — permite
+# publicar o backend com "New > Blueprint" a apontar para este repositório,
+# em vez de preencher cada campo manualmente no dashboard.
+#
+# Nota sobre persistência: o plano gratuito do Render tem disco *efémero* —
+# a base de dados SQLite (mentores.db) e os áudios gerados (static/audio/)
+# apagam-se sempre que o serviço reinicia ou adormece por inatividade. Está
+# bem para testar e mostrar a alguém; para persistência real e permanente,
+# trocar DATABASE_URL por uma Postgres alojada (ex. Neon, Supabase — têm
+# nível gratuito) antes de depender disto a sério.
+services:
+  - type: web
+    name: mentores-espirituais-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-3.1-flash-lite
+      - key: MODERATION_MODEL
+        value: gemini-3.1-flash-lite
+      - key: DATABASE_URL
+        value: sqlite:///./mentores.db
+      - key: VECTOR_STORE_PATH
+        value: ./data/vector_store
+      - key: CORS_ORIGINS
+        # Preencher no dashboard do Render depois de saber o domínio do
+        # Vercel, ex: ["https://mentores-espirituais.vercel.app"]
+        sync: false

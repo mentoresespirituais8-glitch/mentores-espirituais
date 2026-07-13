@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6c8cff" />
+      <stop offset="100%" stop-color="#a06cff" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="50" fill="url(#bg)" />
+  <!-- Livro aberto e pena de escrever: a codificação do Espiritismo em livro, século XIX -->
+  <path d="M50,58 L18,64 L18,76 L50,84 Z" fill="#ffffff" fill-opacity="0.92" />
+  <path d="M50,58 L82,64 L82,76 L50,84 Z" fill="#ffffff" fill-opacity="0.75" />
+  <g stroke="#ffffff" stroke-opacity="0.92" stroke-width="3" stroke-linecap="round">
+    <line x1="34" y1="70" x2="76" y2="24" />
+    <line x1="70" y1="27" x2="76" y2="24" />
+    <line x1="73" y1="33" x2="79" y2="30" />
+  </g>
+</svg>
