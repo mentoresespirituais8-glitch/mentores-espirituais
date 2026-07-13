@@ -288,6 +288,7 @@ export default function PersonaCall() {
                 />
               </div>
               {target.avatarAsset && !connecting && <span className="avatar-blink" aria-hidden="true" />}
+              {target.avatarAsset && speaking && <span className="avatar-mouth" aria-hidden="true" />}
             </div>
             <span className="avatar-mode-badge" title={mode === "voz" ? "Modo de voz" : "Modo de texto"}>
               {mode === "voz" ? "🎙" : "💬"}
