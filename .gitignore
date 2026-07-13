@@ -21,6 +21,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.production
+frontend/tsconfig.tsbuildinfo
 
 # Estado interno do Claude Code — específico desta máquina/sessão, não faz
 # parte do código do projeto.
