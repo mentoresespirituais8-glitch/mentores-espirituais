@@ -41,6 +41,10 @@ class ChatMessageOut(BaseModel):
     # Excertos que fundamentaram esta resposta. Lista vazia = resposta
     # interpretativa, sem excerto direto recuperado (o frontend sinaliza-o).
     sources: list[ResponseSource] = []
+    # Segurança de crise (Fase 7): quando a mensagem do utilizador contém
+    # sinais de autolesão/crise, a interface mostra este aviso com linhas de
+    # apoio reais — gerado no backend, nunca dependente do texto do modelo.
+    safety_notice: str | None = None
 
 
 class ChatHistoryTurn(BaseModel):

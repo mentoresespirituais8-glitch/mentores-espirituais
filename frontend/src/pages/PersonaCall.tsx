@@ -28,6 +28,8 @@ interface Message {
   blocked?: boolean;
   /** Raízes da resposta: excertos reais das fontes usados pelo RAG. */
   sources?: ResponseSource[];
+  /** Aviso de segurança com linhas de apoio (ver safety_notice na API). */
+  safetyNotice?: string | null;
 }
 
 /**
@@ -361,7 +363,13 @@ export default function PersonaCall() {
       localStorage.setItem(sessionStorageKey(personaId), res.session_id);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: res.reply, blocked: res.blocked, sources: res.sources },
+        {
+          role: "assistant",
+          text: res.reply,
+          blocked: res.blocked,
+          sources: res.sources,
+          safetyNotice: res.safety_notice,
+        },
       ]);
       if (res.audio_url && !mutedRef.current) {
         // Mantém a animação de "a falar" enquanto o áudio toca mesmo,
@@ -481,6 +489,11 @@ export default function PersonaCall() {
                 )}
                 <div className={`chat-bubble chat-bubble-${m.role} ${m.blocked ? "chat-bubble-blocked" : ""}`}>
                   {m.text}
+                  {m.safetyNotice && (
+                    <p className="safety-notice" role="note">
+                      {m.safetyNotice}
+                    </p>
+                  )}
                   {m.role === "assistant" && !m.blocked && m.sources !== undefined && (
                     <MessageRoots sources={m.sources} />
                   )}

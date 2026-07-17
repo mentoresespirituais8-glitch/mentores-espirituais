@@ -11,7 +11,13 @@ from sqlalchemy.orm import Session
 from app.chat import memory
 from app.chat.rate_limit import enforce_rate_limit
 from app.core.config import get_settings
-from app.core.guardrails import build_synthesis_prompt, build_system_prompt, moderate_response
+from app.core.guardrails import (
+    CRISIS_SUPPORT_NOTICE,
+    build_synthesis_prompt,
+    build_system_prompt,
+    detect_crisis,
+    moderate_response,
+)
 from app.db.models import ChatMessage
 from app.db.session import get_db_session
 from app.personas import service
@@ -141,8 +147,15 @@ def chat_with_persona(
 
     excerpts = service.retrieve_excerpts(persona, payload.message)
     memory_row = memory.load_memory(db, sid)
+    # Segurança de crise (Fase 7): sinais de autolesão na mensagem mudam o
+    # foco desta resposta (acolher + encaminhar) e fazem a interface mostrar
+    # as linhas de apoio reais (safety_notice).
+    crisis = detect_crisis(payload.message)
     system_prompt = build_system_prompt(
-        persona, excerpts, memory=memory_row.summary if memory_row else None
+        persona,
+        excerpts,
+        memory=memory_row.summary if memory_row else None,
+        crisis_detected=crisis,
     )
 
     # Só a janela recente segue por inteiro — o resto vive no resumo de memória.
@@ -159,6 +172,7 @@ def chat_with_persona(
             disclaimer=settings.disclaimer_text,
             blocked=True,
             block_reason=moderation.reason,
+            safety_notice=CRISIS_SUPPORT_NOTICE if crisis else None,
         )
 
     _save_turn(db, sid, "user", payload.message)
@@ -174,6 +188,7 @@ def chat_with_persona(
         sources=[
             ResponseSource(source_title=e.source_title, excerpt=e.text) for e in excerpts
         ],
+        safety_notice=CRISIS_SUPPORT_NOTICE if crisis else None,
     )
 
 
@@ -195,12 +210,14 @@ def chat_with_synthesized_mentor(
         for persona in source_personas
     }
     memory_row = memory.load_memory(db, sid)
+    crisis = detect_crisis(payload.message)
     system_prompt = build_synthesis_prompt(
         mentor.display_name,
         source_personas,
         excerpts_by_persona,
         mentor.synthesis_prompt_notes,
         memory=memory_row.summary if memory_row else None,
+        crisis_detected=crisis,
     )
 
     draft_reply = _call_llm(system_prompt, memory.recent_history(history), payload.message)
@@ -216,6 +233,7 @@ def chat_with_synthesized_mentor(
             disclaimer=settings.disclaimer_text,
             blocked=True,
             block_reason=moderation.reason,
+            safety_notice=CRISIS_SUPPORT_NOTICE if crisis else None,
         )
 
     _save_turn(db, sid, "user", payload.message)
@@ -235,6 +253,7 @@ def chat_with_synthesized_mentor(
             for persona in source_personas
             for e in excerpts_by_persona.get(persona.id, [])
         ],
+        safety_notice=CRISIS_SUPPORT_NOTICE if crisis else None,
     )
 
 

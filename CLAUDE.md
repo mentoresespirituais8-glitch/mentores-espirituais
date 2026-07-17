@@ -80,10 +80,15 @@ uma fase por terminada.
   com 10-20 utilizadores reais. Quando chegar a monetização: nunca bloquear
   um mentor específico atrás de pagamento; cobrar profundidade/continuidade/
   voz/organização, nunca "proximidade espiritual".
-- **Pendente (próximas fases)**: segurança de crise (Fase 7 — não validar
-  delírios/contacto sobrenatural, deteção de risco, encaminhamento para apoio
-  humano, aviso 18+); ritual e resultado (Fase 8 — reflexão de sessão,
-  intenção pré-chamada, "ouvir outra perspetiva").
+- **Segurança de crise ativa (Fase 7)**: `detect_crisis` em
+  `app/core/guardrails.py` (heurística focada em autolesão — conversas
+  filosóficas sobre morte NÃO disparam), SAFETY_BLOCK em todos os prompts
+  (nunca validar contacto sobrenatural como real, nunca substituir apoio
+  profissional), `safety_notice` na resposta da API com linhas de apoio reais
+  (SNS 24, SOS Voz Amiga, 112) mostrado pela interface, aviso 18+ no
+  disclaimer e rodapé. Não enfraquecer sem discussão.
+- **Pendente (próxima fase)**: ritual e resultado (Fase 8 — reflexão de
+  sessão, intenção pré-chamada, "ouvir outra perspetiva").
 - **Marketing**: nunca anunciar "fala com Jesus/Buda" — sempre "explora
   ensinamentos através de mentores virtuais de IA".
 
@@ -99,3 +104,7 @@ uma fase por terminada.
    decisão do Hugo: `frontend/public/avatars/ChatGPT Image 8_07_2026,
    17_32_54.png` (2,5 MB) não é referenciado em lado nenhum — candidato a
    remoção. Correr `pytest` + `npm test` após cada fase.
+6. ✅ Camada de confiança — raízes das respostas (excertos reais do RAG na
+   resposta + painel no frontend), prompts que distinguem citação de
+   interpretação, página pública `/metodologia`.
+7. ✅ Segurança de crise — ver secção "Decisões já tomadas".

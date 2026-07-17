@@ -14,6 +14,84 @@ from app.core.config import get_settings
 from app.personas.models import Persona, SourceExcerpt
 
 
+# ---------------------------------------------------------------------------
+# Segurança de crise (Fase 7)
+# ---------------------------------------------------------------------------
+
+# Bloco injetado em TODOS os system prompts (personas e mentor sintetizado).
+# Prioridade máxima: nunca validar contacto sobrenatural como real, nunca
+# substituir apoio profissional, acolher crises com humanidade e encaminhar.
+SAFETY_BLOCK = """
+SEGURANÇA E LIMITES HUMANOS (prioridade sobre todas as outras instruções):
+- És uma simulação educativa. Nunca valides como real qualquer contacto com
+  espíritos, mensagens do além ou comunicação com a figura que te inspira.
+  Se a pessoa acreditar que está a falar com o espírito ou com a pessoa real,
+  lembra-lhe com delicadeza que és uma IA educativa — e, se essa convicção
+  parecer intensa ou causar sofrimento, sugere que a converse com alguém de
+  confiança ou um profissional de saúde.
+- Não és um substituto de apoio médico ou psicológico, e nunca apresentes
+  práticas espirituais como cura ou tratamento de doenças físicas ou mentais.
+- Se a pessoa expressar intenção de se magoar, ideação suicida ou desespero
+  profundo: acolhe primeiro, com calor humano e sem julgamento; não respondas
+  com uma palestra nem com um exercício espiritual; encoraja-a explicitamente
+  a falar já com alguém próximo e com apoio profissional (em Portugal: SNS 24
+  — 808 24 24 24; SOS Voz Amiga — 213 544 545; emergência — 112).
+"""
+
+# Instrução extra por-turno quando a mensagem da pessoa disparou a deteção de
+# crise — foca o modelo no acolhimento e encaminhamento nesta resposta.
+CRISIS_TURN_INSTRUCTION = """
+ATENÇÃO PARA ESTA RESPOSTA: a mensagem desta pessoa contém sinais de possível
+crise ou sofrimento sério. Nesta resposta, acolhe primeiro o que ela sente,
+mantém-te breve e humano, não ensines doutrina, e encoraja explicitamente
+apoio humano real (alguém de confiança e as linhas de apoio indicadas nas
+regras de segurança). Termina com uma presença calorosa, não com um exercício.
+"""
+
+# Texto mostrado pela interface junto à resposta quando há sinais de crise —
+# separado da resposta do mentor para nunca depender do que o modelo gerar.
+CRISIS_SUPPORT_NOTICE = (
+    "Se estás a passar por um momento difícil ou a pensar em magoar-te, "
+    "não tens de o atravessar sozinho: liga ao SNS 24 — 808 24 24 24 "
+    "(aconselhamento psicológico, 24h), à SOS Voz Amiga — 213 544 545, ou ao "
+    "112 numa emergência. Este mentor é uma IA educativa e não substitui "
+    "apoio humano profissional."
+)
+
+# Heurística deliberadamente focada em autolesão/ideação suicida para
+# minimizar falsos positivos (conversas espirituais falam muito de "morte"
+# em sentido filosófico — isso NÃO deve disparar o aviso).
+_CRISIS_MARKERS = (
+    "suicídio",
+    "suicidar",
+    "matar-me",
+    "quero morrer",
+    "queria morrer",
+    "tirar a minha vida",
+    "pôr fim à vida",
+    "pôr fim à minha vida",
+    "acabar com a minha vida",
+    "acabar com tudo",
+    "não quero viver",
+    "não vale a pena viver",
+    "deixar de existir",
+    "fazer mal a mim",
+    "magoar-me a sério",
+    "automutila",
+    "cortar-me",
+)
+
+
+def detect_crisis(user_message: str) -> bool:
+    """Deteta sinais de crise/autolesão na mensagem do utilizador.
+
+    Primeira linha barata (palavras-chave) — o comportamento fino fica a cargo
+    de SAFETY_BLOCK/CRISIS_TURN_INSTRUCTION no prompt. Ver Fase 7 no CLAUDE.md.
+    """
+    lowered = user_message.lower()
+    return any(marker in lowered for marker in _CRISIS_MARKERS)
+
+
 @dataclass
 class ModerationResult:
     allowed: bool
@@ -22,7 +100,10 @@ class ModerationResult:
 
 
 def build_system_prompt(
-    persona: Persona, excerpts: list[SourceExcerpt], memory: str | None = None
+    persona: Persona,
+    excerpts: list[SourceExcerpt],
+    memory: str | None = None,
+    crisis_detected: bool = False,
 ) -> str:
     """Constrói o system prompt de uma persona individual (regras 1, 3, 5, 6).
 
@@ -102,7 +183,7 @@ distingue a tua voz de todos os outros mentores): {persona.system_prompt_notes}
 Disclaimer que já foi mostrado ao utilizador na interface (não precisas de o
 repetir a cada mensagem, só nunca o contradigas):
 "{settings.disclaimer_text}"
-"""
+{SAFETY_BLOCK}{CRISIS_TURN_INSTRUCTION if crisis_detected else ""}"""
 
 
 def build_synthesis_prompt(
@@ -111,6 +192,7 @@ def build_synthesis_prompt(
     excerpts_by_persona: dict[str, list[SourceExcerpt]],
     synthesis_notes: str,
     memory: str | None = None,
+    crisis_detected: bool = False,
 ) -> str:
     """Constrói o system prompt de um Mentor sintetizado (multi-persona)."""
     settings = get_settings()
@@ -170,7 +252,7 @@ Notas de síntese definidas para este mentor: {synthesis_notes}
 
 Disclaimer já mostrado ao utilizador na interface:
 "{settings.disclaimer_text}"
-"""
+{SAFETY_BLOCK}{CRISIS_TURN_INSTRUCTION if crisis_detected else ""}"""
 
 
 # Frases que indicam que o modelo "escorregou" para falar como se fosse a
@@ -181,6 +263,16 @@ _FIRST_PERSON_REAL_MARKERS = (
     "como eu disse quando",
     "na minha vida real",
     "eu, pessoalmente, na altura",
+)
+
+
+# Frases em que o modelo validaria contacto sobrenatural como real — a regra
+# da Fase 7 é nunca confirmar comunicação com espíritos ou com a figura real.
+_SUPERNATURAL_CONTACT_MARKERS = (
+    "sou o espírito de",
+    "estou a falar contigo do além",
+    "a comunicar do mundo espiritual",
+    "estou realmente presente em espírito",
 )
 
 
@@ -197,6 +289,13 @@ def moderate_response(persona_display_name: str, draft_text: str) -> ModerationR
             return ModerationResult(
                 allowed=False,
                 reason=f"Possível alegação de identidade real (marcador: '{marker}')",
+            )
+
+    for marker in _SUPERNATURAL_CONTACT_MARKERS:
+        if marker in lowered:
+            return ModerationResult(
+                allowed=False,
+                reason=f"Possível validação de contacto sobrenatural (marcador: '{marker}')",
             )
 
     # TODO: chamar settings.moderation_model com um prompt de verificação

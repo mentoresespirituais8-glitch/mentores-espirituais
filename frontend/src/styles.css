@@ -2226,3 +2226,18 @@ a {
 .method-actions {
   margin-top: var(--space-7);
 }
+
+/* ---------------------------------------------------------------------------
+   Segurança de crise (Fase 7): aviso com linhas de apoio junto à resposta.
+   Tom calmo e humano — destaque suave em dourado, sem alarme visual.
+--------------------------------------------------------------------------- */
+.safety-notice {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--accent-3);
+  border-radius: 0 8px 8px 0;
+  background: rgba(255, 207, 108, 0.08);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}

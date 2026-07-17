@@ -32,6 +32,9 @@ export interface ChatResponse {
   /** Excertos reais das fontes que fundamentaram a resposta (painel "Ver as
    * raízes desta resposta"). Vazio = resposta interpretativa. */
   sources?: ResponseSource[];
+  /** Segurança de crise (Fase 7): aviso com linhas de apoio reais, presente
+   * quando a mensagem do utilizador continha sinais de autolesão/crise. */
+  safety_notice?: string | null;
 }
 
 export interface ChatHistoryTurn {

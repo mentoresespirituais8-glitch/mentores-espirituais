@@ -138,7 +138,10 @@ export default function HomePage() {
         <footer className="home-footer" id="contacto">
           <p className="home-footer-quote">"O conhecimento ganha vida quando é partilhado."</p>
           <div className="home-footer-bottom">
-            <span>© Mentores Espirituais — IA inspirada em figuras históricas, sem afiliação oficial.</span>
+            <span>
+              © Mentores Espirituais — IA inspirada em figuras históricas, sem afiliação oficial.
+              Para maiores de 18 anos.
+            </span>
             <div className="home-footer-links">
               <Link to="/metodologia">Como funcionam os mentores</Link>
               <Link to="/pedido-remocao">Contacto / pedido de remoção ou correção</Link>

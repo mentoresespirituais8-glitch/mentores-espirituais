@@ -59,3 +59,53 @@ def test_moderate_response_blocks_first_person_real_identity_claim():
 def test_moderate_response_allows_normal_educational_text():
     result = moderate_response("Mentor de Teste", "Segundo as fontes públicas, esta figura defendia a compaixão.")
     assert result.allowed is True
+
+
+# ---------------------------------------------------------------------------
+# Segurança de crise (Fase 7)
+# ---------------------------------------------------------------------------
+
+from app.core.guardrails import CRISIS_SUPPORT_NOTICE, detect_crisis
+
+
+def test_detect_crisis_flags_self_harm_language():
+    assert detect_crisis("Já não aguento mais, penso em acabar com a minha vida")
+    assert detect_crisis("às vezes só queria morrer")
+    assert detect_crisis("Tenho pensado em suicídio")
+
+
+def test_detect_crisis_ignores_philosophical_talk_about_death():
+    # Conversa espiritual normal sobre morte/reencarnação NÃO deve disparar.
+    assert not detect_crisis("O que acontece depois da morte?")
+    assert not detect_crisis("O que dizem as fontes sobre a reencarnação e a vida após a morte?")
+    assert not detect_crisis("Tenho medo de perder alguém que amo")
+
+
+def test_safety_block_present_in_all_prompts():
+    prompt = build_system_prompt(PERSONA, EXCERPTS)
+    assert "SEGURANÇA E LIMITES HUMANOS" in prompt
+    assert "808 24 24 24" in prompt
+
+    synth = build_synthesis_prompt("Mentor Síntese", [PERSONA], {PERSONA.id: EXCERPTS}, "notas")
+    assert "SEGURANÇA E LIMITES HUMANOS" in synth
+    assert "808 24 24 24" in synth
+
+
+def test_crisis_turn_instruction_only_when_flagged():
+    calm = build_system_prompt(PERSONA, EXCERPTS, crisis_detected=False)
+    crisis = build_system_prompt(PERSONA, EXCERPTS, crisis_detected=True)
+    assert "ATENÇÃO PARA ESTA RESPOSTA" not in calm
+    assert "ATENÇÃO PARA ESTA RESPOSTA" in crisis
+
+
+def test_moderation_blocks_supernatural_contact_claims():
+    result = moderate_response("Mentor de Teste", "Sim, sou o espírito de Allan Kardec e falo contigo.")
+    assert result.allowed is False
+
+    result = moderate_response("Mentor de Teste", "Estou a falar contigo do além para te guiar.")
+    assert result.allowed is False
+
+
+def test_crisis_support_notice_has_real_lines():
+    assert "808 24 24 24" in CRISIS_SUPPORT_NOTICE
+    assert "112" in CRISIS_SUPPORT_NOTICE
