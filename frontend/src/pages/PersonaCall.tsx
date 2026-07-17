@@ -13,6 +13,25 @@ function sessionStorageKey(personaId: string): string {
   return `mentores-espirituais:sessao:${personaId}`;
 }
 
+// Ritual e resultado (Fase 8): a intenção declarada antes da chamada fica
+// guardada por mentor, tal como a sessão — sobrevive a recarregar a página.
+function intentionStorageKey(personaId: string): string {
+  return `mentores-espirituais:intencao:${personaId}`;
+}
+
+const INTENTION_SUGGESTIONS = [
+  "Encontrar calma",
+  "Procurar orientação",
+  "Explorar os ensinamentos",
+  "Desabafar",
+];
+
+// Pedido de reflexão final — segue pelo fluxo de chat normal, por isso passa
+// pelos guardrails e pela memória como qualquer outra mensagem.
+const REFLECTION_REQUEST =
+  "Antes de terminarmos, oferece-me uma breve reflexão sobre a nossa conversa " +
+  "de hoje — o essencial que explorámos e algo simples que eu possa levar comigo.";
+
 // Web Speech API — sem tipos oficiais no TS/DOM lib e só disponível com
 // prefixo "webkit" em Chrome/Edge; Safari e Firefox ainda não suportam.
 // TODO(pagamento): quando existirem contas de utilizador, ligar aqui a
@@ -82,6 +101,49 @@ function MessageRoots({ sources }: { sources: ResponseSource[] }) {
   );
 }
 
+/**
+ * "Ouvir outra perspetiva" (Fase 8): leva a mesma pergunta a outro mentor —
+ * o contraste entre tradições é valor educativo, não uma falha.
+ */
+function OtherPerspectives({
+  options,
+  question,
+}: {
+  options: { id: string; name: string }[];
+  question: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (options.length === 0) return null;
+
+  return (
+    <div className="perspectives">
+      <button
+        type="button"
+        className="roots-toggle"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        {open ? "Fechar perspetivas" : "Ouvir outra perspetiva"}
+      </button>
+      {open && (
+        <div className="perspectives-list">
+          <p className="perspectives-intro">Levar esta pergunta a outro mentor:</p>
+          {options.map((o) => (
+            <Link
+              key={o.id}
+              to={`/chamada/${o.id}?pergunta=${encodeURIComponent(question)}`}
+              className="perspective-link"
+            >
+              {o.name} →
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface CallTarget {
   id: string;
   display_name: string;
@@ -104,6 +166,12 @@ export default function PersonaCall() {
   const [mode, setMode] = useState<"texto" | "voz">("texto");
   const [connecting, setConnecting] = useState(true);
   const [resetting, setResetting] = useState(false);
+  // Ritual e resultado (Fase 8): intenção pré-chamada + outros mentores para
+  // "ouvir outra perspetiva".
+  const [intention, setIntention] = useState<string | null>(null);
+  const [intentionDraft, setIntentionDraft] = useState("");
+  const [showIntention, setShowIntention] = useState(false);
+  const [others, setOthers] = useState<{ id: string; name: string }[]>([]);
   // Controlos de chamada (Fase 4): silenciar a voz do mentor e modo
   // mãos-livres (conversa contínua por voz, como numa chamada real).
   // Refs espelham o estado para serem lidas dentro de callbacks de áudio.
@@ -124,6 +192,8 @@ export default function PersonaCall() {
     setTarget(null);
     setLoadError(null);
     sessionId.current = null;
+    setIntention(null);
+    setShowIntention(false);
 
     async function restoreOrGreet(greeting: string) {
       greetingRef.current = greeting;
@@ -134,6 +204,7 @@ export default function PersonaCall() {
           if (history.messages.length > 0) {
             sessionId.current = storedSessionId;
             setMessages(history.messages.map((m) => ({ role: m.role, text: m.content })));
+            setIntention(localStorage.getItem(intentionStorageKey(personaId)));
             return;
           }
         } catch {
@@ -141,10 +212,30 @@ export default function PersonaCall() {
         }
       }
       setMessages([{ role: "assistant", text: greeting }]);
+      const savedIntention = localStorage.getItem(intentionStorageKey(personaId));
+      if (savedIntention) {
+        setIntention(savedIntention);
+      } else {
+        // Conversa nova: convite (saltável) a declarar uma intenção.
+        setShowIntention(true);
+      }
     }
 
     Promise.all([fetchPersonas(), fetchSynthesizedMentors()])
       .then(([personas, mentors]) => {
+        setOthers([
+          ...personas
+            .filter((p) => p.id !== personaId)
+            .map((p) => ({ id: p.id, name: p.display_name })),
+          ...mentors
+            .filter((m) => m.id !== personaId)
+            .map((m) => ({ id: m.id, name: m.display_name })),
+        ]);
+        // "Ouvir outra perspetiva" chega com a pergunta no URL — pré-preenche
+        // o campo de escrita, a pessoa decide se envia.
+        const asked = new URLSearchParams(window.location.search).get("pergunta");
+        if (asked) setInput(asked);
+
         const persona = personas.find((p) => p.id === personaId);
         if (persona) {
           setTarget({
@@ -342,10 +433,20 @@ export default function PersonaCall() {
       // a sessão antiga fica órfã e é inofensiva.
     } finally {
       localStorage.removeItem(sessionStorageKey(personaId));
+      localStorage.removeItem(intentionStorageKey(personaId));
       sessionId.current = null;
       setMessages([{ role: "assistant", text: greetingRef.current }]);
+      setIntention(null);
       setResetting(false);
+      setShowIntention(true);
     }
+  }
+
+  function lastUserQuestionBefore(index: number): string | null {
+    for (let j = index - 1; j >= 0; j--) {
+      if (messages[j].role === "user") return messages[j].text;
+    }
+    return null;
   }
 
   async function handleSend(overrideText?: string) {
@@ -358,7 +459,13 @@ export default function PersonaCall() {
     setSpeaking(true);
 
     try {
-      const res = await sendChatMessage(personaId, text, sessionId.current, target?.kind ?? "persona");
+      const res = await sendChatMessage(
+        personaId,
+        text,
+        sessionId.current,
+        target?.kind ?? "persona",
+        intention
+      );
       sessionId.current = res.session_id;
       localStorage.setItem(sessionStorageKey(personaId), res.session_id);
       setMessages((prev) => [
@@ -451,6 +558,11 @@ export default function PersonaCall() {
           <span className="call-status">
             {connecting ? "a ligar…" : listening ? "a ouvir…" : speaking ? "a responder…" : "em chamada"}
           </span>
+          {intention && (
+            <span className="intention-chip" title="Intenção desta conversa">
+              🧭 {intention}
+            </span>
+          )}
 
           <div className="call-controls">
             {SpeechRecognitionCtor && (
@@ -477,6 +589,15 @@ export default function PersonaCall() {
             >
               {muted ? "🔇 Som desligado" : "🔊 Som ligado"}
             </button>
+            <button
+              type="button"
+              className="call-control-button"
+              onClick={() => handleSend(REFLECTION_REQUEST)}
+              disabled={sending || resetting || messages.length < 3}
+              title="Pedir ao mentor uma breve reflexão final sobre a conversa de hoje"
+            >
+              🕯 Encerrar com reflexão
+            </button>
           </div>
         </section>
 
@@ -496,6 +617,9 @@ export default function PersonaCall() {
                   )}
                   {m.role === "assistant" && !m.blocked && m.sources !== undefined && (
                     <MessageRoots sources={m.sources} />
+                  )}
+                  {m.role === "assistant" && !m.blocked && lastUserQuestionBefore(i) !== null && (
+                    <OtherPerspectives options={others} question={lastUserQuestionBefore(i)!} />
                   )}
                 </div>
               </div>
@@ -558,6 +682,69 @@ export default function PersonaCall() {
           </div>
         </section>
       </div>
+
+      {showIntention && (
+        <div
+          className="intention-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Definir uma intenção para esta chamada"
+        >
+          <div className="intention-card">
+            <h3>Antes de começar…</h3>
+            <p>
+              O que te traz a esta chamada? Declarar uma intenção ajuda o mentor a
+              acompanhar-te — mas é totalmente opcional.
+            </p>
+            <div className="intention-suggestions">
+              {INTENTION_SUGGESTIONS.map((sugestao) => (
+                <button
+                  key={sugestao}
+                  type="button"
+                  className={`topic-pill intention-pill ${
+                    intentionDraft === sugestao ? "intention-pill-active" : ""
+                  }`}
+                  onClick={() => setIntentionDraft(sugestao)}
+                >
+                  {sugestao}
+                </button>
+              ))}
+            </div>
+            <input
+              value={intentionDraft}
+              onChange={(e) => setIntentionDraft(e.target.value)}
+              placeholder="…ou escreve com as tuas palavras"
+              aria-label="Intenção com as tuas palavras"
+            />
+            <div className="intention-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowIntention(false);
+                  setIntentionDraft("");
+                }}
+              >
+                Saltar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!intentionDraft.trim()}
+                onClick={() => {
+                  const value = intentionDraft.trim();
+                  setIntention(value);
+                  localStorage.setItem(intentionStorageKey(personaId), value);
+                  setShowIntention(false);
+                  setIntentionDraft("");
+                }}
+              >
+                Começar com esta intenção
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

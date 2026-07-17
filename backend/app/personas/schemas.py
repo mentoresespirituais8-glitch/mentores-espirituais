@@ -19,6 +19,10 @@ class PersonaSummary(BaseModel):
 class ChatMessageIn(BaseModel):
     message: str
     session_id: str | None = None
+    # Ritual e resultado (Fase 8): intenção declarada pela pessoa antes da
+    # chamada ("encontrar calma", "procurar orientação", texto livre) —
+    # opcional, injetada no system prompt para o mentor a honrar.
+    intention: str | None = None
 
 
 class ResponseSource(BaseModel):

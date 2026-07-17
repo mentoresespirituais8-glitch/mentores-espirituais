@@ -156,6 +156,7 @@ def chat_with_persona(
         excerpts,
         memory=memory_row.summary if memory_row else None,
         crisis_detected=crisis,
+        intention=payload.intention,
     )
 
     # Só a janela recente segue por inteiro — o resto vive no resumo de memória.
@@ -218,6 +219,7 @@ def chat_with_synthesized_mentor(
         mentor.synthesis_prompt_notes,
         memory=memory_row.summary if memory_row else None,
         crisis_detected=crisis,
+        intention=payload.intention,
     )
 
     draft_reply = _call_llm(system_prompt, memory.recent_history(history), payload.message)

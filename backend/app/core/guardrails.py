@@ -104,6 +104,7 @@ def build_system_prompt(
     excerpts: list[SourceExcerpt],
     memory: str | None = None,
     crisis_detected: bool = False,
+    intention: str | None = None,
 ) -> str:
     """Constrói o system prompt de uma persona individual (regras 1, 3, 5, 6).
 
@@ -126,6 +127,16 @@ sem recitar a lista — como um mentor que se lembra de quem tem à frente):
 {memory}
 """
         if memory
+        else ""
+    )
+
+    intention_block = (
+        f"""
+Intenção que a pessoa declarou para esta conversa (honra-a ao longo da sessão
+sem a repetir de volta como um papagaio — deixa que ela molde o rumo e, no
+fim, ajuda a pessoa a perceber se a encontrou): {intention}
+"""
+        if intention
         else ""
     )
 
@@ -183,7 +194,7 @@ distingue a tua voz de todos os outros mentores): {persona.system_prompt_notes}
 Disclaimer que já foi mostrado ao utilizador na interface (não precisas de o
 repetir a cada mensagem, só nunca o contradigas):
 "{settings.disclaimer_text}"
-{SAFETY_BLOCK}{CRISIS_TURN_INSTRUCTION if crisis_detected else ""}"""
+{intention_block}{SAFETY_BLOCK}{CRISIS_TURN_INSTRUCTION if crisis_detected else ""}"""
 
 
 def build_synthesis_prompt(
@@ -193,6 +204,7 @@ def build_synthesis_prompt(
     synthesis_notes: str,
     memory: str | None = None,
     crisis_detected: bool = False,
+    intention: str | None = None,
 ) -> str:
     """Constrói o system prompt de um Mentor sintetizado (multi-persona)."""
     settings = get_settings()
@@ -215,6 +227,15 @@ sem recitar a lista):
 {memory}
 """
         if memory
+        else ""
+    )
+
+    intention_block = (
+        f"""
+Intenção que a pessoa declarou para esta conversa (honra-a ao longo da sessão
+sem a repetir de volta como um papagaio): {intention}
+"""
+        if intention
         else ""
     )
 
@@ -252,7 +273,7 @@ Notas de síntese definidas para este mentor: {synthesis_notes}
 
 Disclaimer já mostrado ao utilizador na interface:
 "{settings.disclaimer_text}"
-{SAFETY_BLOCK}{CRISIS_TURN_INSTRUCTION if crisis_detected else ""}"""
+{intention_block}{SAFETY_BLOCK}{CRISIS_TURN_INSTRUCTION if crisis_detected else ""}"""
 
 
 # Frases que indicam que o modelo "escorregou" para falar como se fosse a

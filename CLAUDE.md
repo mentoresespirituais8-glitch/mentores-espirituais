@@ -87,8 +87,12 @@ uma fase por terminada.
   profissional), `safety_notice` na resposta da API com linhas de apoio reais
   (SNS 24, SOS Voz Amiga, 112) mostrado pela interface, aviso 18+ no
   disclaimer e rodapé. Não enfraquecer sem discussão.
-- **Pendente (próxima fase)**: ritual e resultado (Fase 8 — reflexão de
-  sessão, intenção pré-chamada, "ouvir outra perspetiva").
+- **Ritual e resultado (Fase 8)**: intenção pré-chamada (overlay saltável em
+  PersonaCall, guardada por mentor em localStorage, enviada em `intention` no
+  ChatMessageIn e injetada nos prompts), botão "Encerrar com reflexão" (pede
+  uma síntese final pelo fluxo de chat normal — guardrails intactos) e "Ouvir
+  outra perspetiva" (leva a última pergunta a outro mentor via
+  `?pergunta=`, pré-preenchendo o campo — a pessoa decide se envia).
 - **Marketing**: nunca anunciar "fala com Jesus/Buda" — sempre "explora
   ensinamentos através de mentores virtuais de IA".
 
@@ -108,3 +112,5 @@ uma fase por terminada.
    resposta + painel no frontend), prompts que distinguem citação de
    interpretação, página pública `/metodologia`.
 7. ✅ Segurança de crise — ver secção "Decisões já tomadas".
+8. ✅ Ritual e resultado — intenção pré-chamada, reflexão de sessão e "ouvir
+   outra perspetiva". Ver secção "Decisões estratégicas".

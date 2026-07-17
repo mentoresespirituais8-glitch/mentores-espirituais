@@ -109,3 +109,20 @@ def test_moderation_blocks_supernatural_contact_claims():
 def test_crisis_support_notice_has_real_lines():
     assert "808 24 24 24" in CRISIS_SUPPORT_NOTICE
     assert "112" in CRISIS_SUPPORT_NOTICE
+
+
+# ---------------------------------------------------------------------------
+# Ritual e resultado (Fase 8): intenção pré-chamada
+# ---------------------------------------------------------------------------
+
+
+def test_intention_included_only_when_declared():
+    without = build_system_prompt(PERSONA, EXCERPTS)
+    with_intention = build_system_prompt(PERSONA, EXCERPTS, intention="encontrar calma")
+    assert "Intenção que a pessoa declarou" not in without
+    assert "encontrar calma" in with_intention
+
+    synth = build_synthesis_prompt(
+        "Mentor Síntese", [PERSONA], {PERSONA.id: EXCERPTS}, "notas", intention="procurar orientação"
+    )
+    assert "procurar orientação" in synth

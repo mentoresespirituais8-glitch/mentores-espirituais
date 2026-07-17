@@ -155,12 +155,14 @@ export async function sendChatMessage(
   personaId: string,
   message: string,
   sessionId: string | null,
-  kind: "persona" | "mentor" = "persona"
+  kind: "persona" | "mentor" = "persona",
+  /** Intenção pré-chamada (Fase 8) — opcional, o mentor honra-a na sessão. */
+  intention: string | null = null
 ): Promise<ChatResponse> {
   const res = await safeFetch(`${BASE}/chat/${kind}/${personaId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, session_id: sessionId }),
+    body: JSON.stringify({ message, session_id: sessionId, intention }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
