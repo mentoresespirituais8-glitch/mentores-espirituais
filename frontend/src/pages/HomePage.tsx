@@ -9,6 +9,8 @@ import HowItWorks from "../components/HowItWorks";
 import WhyTrust from "../components/WhyTrust";
 import PersonaCard from "../components/PersonaCard";
 import SynthesisMentorCard from "../components/SynthesisMentorCard";
+import DemoConversations from "../components/DemoConversations";
+import PersonaProfileModal, { type ProfileTarget } from "../components/PersonaProfileModal";
 import { fetchPersonas, fetchSynthesizedMentors, type PersonaSummary, type SynthesisMentorSummary } from "../lib/api";
 import { useScrollReveal } from "../lib/useScrollReveal";
 
@@ -27,6 +29,27 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
+
+  function openPersonaProfile(persona: PersonaSummary) {
+    setProfileTarget({
+      id: persona.id,
+      displayName: persona.display_name,
+      inspiredBy: persona.inspired_by,
+      avatarAsset: persona.avatar.asset,
+      kind: "persona",
+    });
+  }
+
+  function openMentorProfile(mentor: SynthesisMentorSummary) {
+    setProfileTarget({
+      id: mentor.id,
+      displayName: mentor.display_name,
+      inspiredBy: [],
+      avatarAsset: mentor.avatar_asset,
+      kind: "mentor",
+    });
+  }
 
   useEffect(() => {
     Promise.all([fetchPersonas(), fetchSynthesizedMentors()])
@@ -60,16 +83,18 @@ export default function HomePage() {
       </a>
       <SiteBackground />
       <NavBar />
-      <Hero />
+      <Hero personas={personas} />
       <Transition />
 
       <main className="home-page">
+        <DemoConversations personas={personas} />
+
         <SearchBar value={search} onChange={setSearch} />
 
         {loading && <p>A carregar mentores…</p>}
         {error && <p className="error-message">{error}</p>}
 
-        <section id="mentores" aria-labelledby="mentores-heading">
+        <section id="mentores" className="reveal" aria-labelledby="mentores-heading">
           <span className="section-kicker">Os mentores</span>
           <h2 className="section-heading" id="mentores-heading">
             Escolha o mentor que deseja conhecer
@@ -86,7 +111,7 @@ export default function HomePage() {
 
           <div className="persona-grid">
             {filteredPersonas.map((persona) => (
-              <PersonaCard key={persona.id} persona={persona} />
+              <PersonaCard key={persona.id} persona={persona} onOpenProfile={openPersonaProfile} />
             ))}
           </div>
 
@@ -95,7 +120,12 @@ export default function HomePage() {
               <h2 className="section-heading">Mentores Sintetizados</h2>
               <div className="persona-grid">
                 {filteredMentors.map((mentor) => (
-                  <SynthesisMentorCard key={mentor.id} mentor={mentor} allPersonas={personas} />
+                  <SynthesisMentorCard
+                    key={mentor.id}
+                    mentor={mentor}
+                    allPersonas={personas}
+                    onOpenProfile={openMentorProfile}
+                  />
                 ))}
               </div>
             </>
@@ -110,11 +140,16 @@ export default function HomePage() {
           <div className="home-footer-bottom">
             <span>© Mentores Espirituais — IA inspirada em figuras históricas, sem afiliação oficial.</span>
             <div className="home-footer-links">
+              <Link to="/metodologia">Como funcionam os mentores</Link>
               <Link to="/pedido-remocao">Contacto / pedido de remoção ou correção</Link>
             </div>
           </div>
         </footer>
       </main>
+
+      {profileTarget && (
+        <PersonaProfileModal target={profileTarget} onClose={() => setProfileTarget(null)} />
+      )}
     </>
   );
 }

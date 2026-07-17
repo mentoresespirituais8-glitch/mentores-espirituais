@@ -1606,3 +1606,623 @@ a {
     display: none;
   }
 }
+
+/* ---------- Demonstrações de conversas (homepage) ---------- */
+.demo-section {
+  margin-top: var(--space-8);
+  text-align: center;
+}
+
+.demo-grid {
+  margin-top: var(--space-6);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-5);
+  text-align: left;
+}
+
+.demo-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: linear-gradient(180deg, var(--panel), var(--bg-elevated));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.demo-card:hover,
+.demo-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: rgba(108, 140, 255, 0.45);
+  box-shadow: var(--shadow-glow);
+}
+
+.demo-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.demo-card-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.demo-card-sub {
+  display: block;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+
+.demo-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.demo-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.demo-row {
+  display: flex;
+}
+
+.demo-row-user {
+  justify-content: flex-end;
+}
+
+.demo-bubble {
+  max-width: 88%;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.demo-bubble-user {
+  background: rgba(108, 140, 255, 0.14);
+  border: 1px solid rgba(108, 140, 255, 0.28);
+  border-bottom-right-radius: 4px;
+  color: var(--text);
+}
+
+.demo-bubble-assistant {
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-bottom-left-radius: 4px;
+  color: var(--text-dim);
+}
+
+.demo-card-cta {
+  color: var(--accent-3);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.demo-card:hover .demo-card-cta .card-cta-arrow {
+  transform: translateX(4px);
+}
+
+/* ---------- Ações no rodapé dos cartões (Ver perfil / Conversar) ---------- */
+.persona-card-clickable {
+  cursor: pointer;
+}
+
+.persona-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
+  margin-top: auto;
+}
+
+.card-cta-profile {
+  color: var(--text-dim);
+}
+
+.persona-card-clickable:hover .card-cta-profile {
+  color: var(--text);
+}
+
+/* ---------- Modal de perfil do mentor ---------- */
+.profile-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.75rem, 3vw, 2rem);
+  background: rgba(5, 6, 10, 0.72);
+  backdrop-filter: blur(8px);
+  animation: modal-backdrop-in var(--duration-base) var(--ease-standard) both;
+}
+
+.profile-modal {
+  position: relative;
+  width: min(640px, 100%);
+  max-height: min(86vh, 900px);
+  overflow-y: auto;
+  background: linear-gradient(180deg, var(--panel), var(--bg-elevated));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  box-shadow: var(--shadow-lg), 0 0 60px rgba(108, 140, 255, 0.12);
+  animation: modal-panel-in var(--duration-base) var(--ease-standard) both;
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.profile-modal-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text-dim);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.profile-modal-close:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.profile-modal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.profile-modal-avatar {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 2px solid rgba(108, 140, 255, 0.4);
+  box-shadow: 0 0 24px rgba(108, 140, 255, 0.18);
+  flex-shrink: 0;
+}
+
+.profile-modal-header h3 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.profile-modal-quote {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-left: 3px solid var(--accent-3);
+  background: rgba(255, 207, 108, 0.06);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.profile-modal-quote cite {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+.profile-modal-bio {
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin: 0 0 var(--space-5);
+}
+
+.profile-modal-specialties h4,
+.profile-modal-demo h4 {
+  margin: 0 0 var(--space-3);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-3);
+}
+
+.profile-modal-specialties {
+  margin-bottom: var(--space-5);
+}
+
+.profile-modal-demo {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  background: rgba(11, 13, 18, 0.5);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+
+.profile-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+@media (max-width: 720px) {
+  .persona-card-actions {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+}
+
+/* "Ver perfil" mantém aspeto neutro mesmo com o cartão em hover — só o
+   "Conversar" ganha o gradiente, para hierarquia clara entre as duas ações. */
+.persona-card:hover .card-cta-profile,
+.persona-card:focus-within .card-cta-profile {
+  background: var(--panel-2);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ---------- Revisão premium da homepage ---------- */
+
+/* Vinheta subtil por cima do fundo ambiente: escurece as margens e dá
+   profundidade de "sala com luz ao centro" — sensação de espaço especial. */
+.site-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 12%, transparent 55%, rgba(0, 0, 0, 0.4) 100%);
+  pointer-events: none;
+}
+
+/* Faixa de presença no hero: os mentores "estão ali", prontos a atender. */
+.hero-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: var(--space-4);
+  padding: 0.45rem 1.1rem 0.45rem 0.5rem;
+  background: rgba(18, 21, 28, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: border-color var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.hero-presence:hover {
+  border-color: rgba(108, 140, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.hero-presence-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.hero-presence-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 2px solid #12151c;
+  margin-left: -10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.hero-presence-avatar:first-child {
+  margin-left: 0;
+}
+
+.persona-avatar-placeholder.hero-presence-avatar {
+  font-size: 0.8rem;
+}
+
+.hero-presence-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 5.º filho do hero (a faixa de presença) entra por último na sequência. */
+.hero-content.reveal-in > *:nth-child(5) {
+  animation-delay: 0.52s;
+}
+
+/* Ponto verde de disponibilidade, com pulso suave de "em linha". */
+.presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: presence-pulse 2.2s ease-out infinite;
+}
+
+@keyframes presence-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presence-dot {
+    animation: none;
+  }
+}
+
+/* Selo "Disponível" sobre o retrato — o cartão é uma porta para uma chamada,
+   não uma ficha informativa. */
+.card-presence {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.65rem;
+  background: rgba(11, 13, 18, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #7ee787;
+}
+
+/* Entradas escalonadas: os cartões surgem um a um quando a secção se revela —
+   ritmo calmo, como luzes a acender numa sala. */
+.reveal.is-visible .demo-card,
+.reveal.is-visible .persona-card {
+  animation: card-rise 0.65s var(--ease-standard) both;
+}
+
+.reveal.is-visible .demo-card:nth-child(2),
+.reveal.is-visible .persona-card:nth-child(2) { animation-delay: 0.08s; }
+.reveal.is-visible .demo-card:nth-child(3),
+.reveal.is-visible .persona-card:nth-child(3) { animation-delay: 0.16s; }
+.reveal.is-visible .demo-card:nth-child(4),
+.reveal.is-visible .persona-card:nth-child(4) { animation-delay: 0.24s; }
+.reveal.is-visible .persona-card:nth-child(5) { animation-delay: 0.32s; }
+
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal.is-visible .demo-card,
+  .reveal.is-visible .persona-card {
+    animation: none;
+  }
+}
+
+/* Retrato ganha vida no hover: além do zoom já existente, sobe ligeiramente
+   o brilho — a "porta" acende quando nos aproximamos. */
+.persona-card:hover .persona-card-media .avatar-featured,
+.persona-card:focus-within .persona-card-media .avatar-featured {
+  filter: saturate(1.04) contrast(1.03) brightness(1.06);
+}
+
+/* ---------- Nota de memória na página de chamada (transparência) ---------- */
+.memory-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0.55rem 0.9rem;
+  border-top: 1px solid var(--border-soft);
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+
+.memory-reset-button {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.memory-reset-button:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.memory-reset-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Controlos de chamada (Fase 4) ---------- */
+.call-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.call-control-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1.05rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.call-control-button:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.call-control-active {
+  background: rgba(255, 207, 108, 0.12);
+  border-color: rgba(255, 207, 108, 0.5);
+  color: var(--accent-3);
+}
+
+/* ---------- "Ver as raízes desta resposta" (camada de confiança) ---------- */
+.roots {
+  margin-top: 0.6rem;
+}
+
+.roots-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(255, 207, 108, 0.4);
+}
+
+.roots-toggle:hover {
+  text-decoration-color: var(--accent-3);
+}
+
+.roots-panel {
+  margin-top: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  background: rgba(11, 13, 18, 0.55);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--accent-3);
+  border-radius: var(--radius-sm) var(--radius-md) var(--radius-md) var(--radius-sm);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.roots-intro,
+.roots-note,
+.roots-empty {
+  margin: 0;
+  color: var(--text-faint);
+}
+
+.roots-note {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+}
+
+.roots-quote {
+  margin: 0.55rem 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.roots-quote cite {
+  display: block;
+  margin-top: 0.25rem;
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--accent-3);
+}
+
+/* ---------- Página de metodologia ---------- */
+.method-page {
+  max-width: 760px;
+}
+
+.method-page .section-heading {
+  margin-top: var(--space-4);
+}
+
+.method-section {
+  margin-top: var(--space-6);
+}
+
+.method-section h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  margin: 0 0 var(--space-3);
+  color: var(--accent-3);
+}
+
+.method-section p {
+  margin: 0 0 var(--space-3);
+  color: var(--text-dim);
+  line-height: 1.75;
+}
+
+.method-section a {
+  color: var(--accent);
+}
+
+.method-actions {
+  margin-top: var(--space-7);
+}

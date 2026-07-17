@@ -24,3 +24,23 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+
+
+class SessionMemory(Base):
+    """Resumo persistido do que o mentor 'recorda' de uma sessão longa.
+
+    Em vez de reenviar o histórico completo ao modelo (contexto a crescer sem
+    limite), as mensagens mais antigas são condensadas neste resumo, que é
+    injetado no system prompt (ver app/chat/memory.py e
+    app/core/guardrails.py::build_system_prompt). `covered_messages` marca
+    quantas mensagens do histórico já estão representadas no resumo.
+    """
+
+    __tablename__ = "session_memories"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    covered_messages: Mapped[int] = mapped_column(nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )

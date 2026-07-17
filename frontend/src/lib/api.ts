@@ -16,6 +16,11 @@ export interface PersonaSummary {
   topics: string[];
 }
 
+export interface ResponseSource {
+  source_title: string;
+  excerpt: string;
+}
+
 export interface ChatResponse {
   persona_id: string;
   session_id: string;
@@ -24,6 +29,9 @@ export interface ChatResponse {
   blocked: boolean;
   block_reason?: string | null;
   audio_url?: string | null;
+  /** Excertos reais das fontes que fundamentaram a resposta (painel "Ver as
+   * raízes desta resposta"). Vazio = resposta interpretativa. */
+  sources?: ResponseSource[];
 }
 
 export interface ChatHistoryTurn {
@@ -124,6 +132,14 @@ export async function submitTakedownRequest(
     throw new Error(body?.detail ? JSON.stringify(body.detail) : "Falha ao enviar pedido");
   }
   return res.json();
+}
+
+/** Apaga o histórico e a memória de uma sessão no backend — usado pelo botão
+ * "Começar de novo" em PersonaCall.tsx (controlo do utilizador sobre o que o
+ * mentor recorda). */
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  const res = await safeFetch(`${BASE}/chat/session/${sessionId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Falha ao apagar a conversa");
 }
 
 export async function fetchChatHistory(sessionId: string): Promise<ChatHistoryResponse> {

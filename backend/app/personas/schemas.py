@@ -21,6 +21,15 @@ class ChatMessageIn(BaseModel):
     session_id: str | None = None
 
 
+class ResponseSource(BaseModel):
+    """Uma 'raiz' da resposta: excerto real das fontes públicas usado pelo RAG
+    para fundamentar a resposta do mentor (painel 'Ver as raízes desta
+    resposta' no frontend — camada de confiança, Fase 6)."""
+
+    source_title: str
+    excerpt: str
+
+
 class ChatMessageOut(BaseModel):
     persona_id: str
     session_id: str
@@ -29,6 +38,9 @@ class ChatMessageOut(BaseModel):
     blocked: bool = False
     block_reason: str | None = None
     audio_url: str | None = None
+    # Excertos que fundamentaram esta resposta. Lista vazia = resposta
+    # interpretativa, sem excerto direto recuperado (o frontend sinaliza-o).
+    sources: list[ResponseSource] = []
 
 
 class ChatHistoryTurn(BaseModel):

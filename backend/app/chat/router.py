@@ -8,13 +8,20 @@ from fastapi import APIRouter, Depends, HTTPException
 from gtts import gTTS
 from sqlalchemy.orm import Session
 
+from app.chat import memory
 from app.chat.rate_limit import enforce_rate_limit
 from app.core.config import get_settings
 from app.core.guardrails import build_synthesis_prompt, build_system_prompt, moderate_response
 from app.db.models import ChatMessage
 from app.db.session import get_db_session
 from app.personas import service
-from app.personas.schemas import ChatHistoryOut, ChatHistoryTurn, ChatMessageIn, ChatMessageOut
+from app.personas.schemas import (
+    ChatHistoryOut,
+    ChatHistoryTurn,
+    ChatMessageIn,
+    ChatMessageOut,
+    ResponseSource,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -133,9 +140,13 @@ def chat_with_persona(
     history = _load_history(db, sid)
 
     excerpts = service.retrieve_excerpts(persona, payload.message)
-    system_prompt = build_system_prompt(persona, excerpts)
+    memory_row = memory.load_memory(db, sid)
+    system_prompt = build_system_prompt(
+        persona, excerpts, memory=memory_row.summary if memory_row else None
+    )
 
-    draft_reply = _call_llm(system_prompt, history, payload.message)
+    # Só a janela recente segue por inteiro — o resto vive no resumo de memória.
+    draft_reply = _call_llm(system_prompt, memory.recent_history(history), payload.message)
     moderation = moderate_response(persona.display_name, draft_reply)
 
     if not moderation.allowed:
@@ -152,6 +163,7 @@ def chat_with_persona(
 
     _save_turn(db, sid, "user", payload.message)
     _save_turn(db, sid, "assistant", draft_reply)
+    memory.maybe_update_memory(db, sid)
 
     return ChatMessageOut(
         persona_id=persona_id,
@@ -159,6 +171,9 @@ def chat_with_persona(
         reply=draft_reply,
         audio_url=criar_audio(draft_reply, persona.avatar.speaking_pace),
         disclaimer=settings.disclaimer_text,
+        sources=[
+            ResponseSource(source_title=e.source_title, excerpt=e.text) for e in excerpts
+        ],
     )
 
 
@@ -179,11 +194,16 @@ def chat_with_synthesized_mentor(
         persona.id: service.retrieve_excerpts(persona, payload.message)
         for persona in source_personas
     }
+    memory_row = memory.load_memory(db, sid)
     system_prompt = build_synthesis_prompt(
-        mentor.display_name, source_personas, excerpts_by_persona, mentor.synthesis_prompt_notes
+        mentor.display_name,
+        source_personas,
+        excerpts_by_persona,
+        mentor.synthesis_prompt_notes,
+        memory=memory_row.summary if memory_row else None,
     )
 
-    draft_reply = _call_llm(system_prompt, history, payload.message)
+    draft_reply = _call_llm(system_prompt, memory.recent_history(history), payload.message)
     moderation = moderate_response(mentor.display_name, draft_reply)
 
     if not moderation.allowed:
@@ -200,6 +220,7 @@ def chat_with_synthesized_mentor(
 
     _save_turn(db, sid, "user", payload.message)
     _save_turn(db, sid, "assistant", draft_reply)
+    memory.maybe_update_memory(db, sid)
 
     return ChatMessageOut(
         persona_id=mentor_id,
@@ -207,6 +228,13 @@ def chat_with_synthesized_mentor(
         reply=draft_reply,
         audio_url=criar_audio(draft_reply),
         disclaimer=settings.disclaimer_text,
+        sources=[
+            ResponseSource(
+                source_title=f"{persona.display_name} — {e.source_title}", excerpt=e.text
+            )
+            for persona in source_personas
+            for e in excerpts_by_persona.get(persona.id, [])
+        ],
     )
 
 
@@ -219,3 +247,13 @@ def get_chat_history(session_id: str, db: Session = Depends(get_db_session)) -> 
         session_id=session_id,
         messages=[ChatHistoryTurn(role=turn["role"], content=turn["content"]) for turn in history],
     )
+
+
+@router.delete("/session/{session_id}")
+def delete_chat_session(session_id: str, db: Session = Depends(get_db_session)) -> dict[str, bool]:
+    """Apaga o histórico E a memória de uma sessão — controlo do utilizador
+    sobre o que o mentor recorda (botão "Começar de novo" em PersonaCall.tsx)."""
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+    db.commit()
+    memory.delete_memory(db, session_id)
+    return {"deleted": True}

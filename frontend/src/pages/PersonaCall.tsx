@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import Avatar from "../components/Avatar";
-import { fetchChatHistory, fetchPersonas, fetchSynthesizedMentors, resolveAudioUrl, sendChatMessage } from "../lib/api";
+import { deleteChatSession, fetchChatHistory, fetchPersonas, fetchSynthesizedMentors, resolveAudioUrl, sendChatMessage, type ResponseSource } from "../lib/api";
 import { PERSONA_GREETINGS, SYNTHESIS_GREETING } from "../lib/greetings";
 
 // A sessão fica presa ao mentor no browser deste utilizador — o mentor não
@@ -26,6 +26,58 @@ interface Message {
   role: "user" | "assistant";
   text: string;
   blocked?: boolean;
+  /** Raízes da resposta: excertos reais das fontes usados pelo RAG. */
+  sources?: ResponseSource[];
+}
+
+/**
+ * "Ver as raízes desta resposta" (camada de confiança, Fase 6): painel
+ * discreto com os excertos reais das fontes públicas que o RAG recuperou
+ * para fundamentar a resposta. Sem excertos, sinaliza honestamente que a
+ * resposta é interpretativa — nunca fingimos fundamentação que não existe.
+ */
+function MessageRoots({ sources }: { sources: ResponseSource[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="roots">
+      <button
+        type="button"
+        className="roots-toggle"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        {open ? "Ocultar raízes" : "Ver as raízes desta resposta"}
+      </button>
+      {open && (
+        <div className="roots-panel">
+          {sources.length === 0 ? (
+            <p className="roots-empty">
+              Não foi recuperado nenhum excerto direto das fontes para esta
+              pergunta — esta resposta é uma interpretação da IA a partir dos
+              princípios gerais dos ensinamentos que estuda.
+            </p>
+          ) : (
+            <>
+              <p className="roots-intro">
+                Excertos das fontes públicas que fundamentaram esta resposta:
+              </p>
+              {sources.map((s, i) => (
+                <blockquote key={i} className="roots-quote">
+                  “{s.excerpt}”
+                  <cite>{s.source_title}</cite>
+                </blockquote>
+              ))}
+              <p className="roots-note">
+                A resposta combina estes excertos com interpretação gerada por
+                IA — não é uma declaração da figura real.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface CallTarget {
@@ -49,7 +101,17 @@ export default function PersonaCall() {
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState<"texto" | "voz">("texto");
   const [connecting, setConnecting] = useState(true);
+  const [resetting, setResetting] = useState(false);
+  // Controlos de chamada (Fase 4): silenciar a voz do mentor e modo
+  // mãos-livres (conversa contínua por voz, como numa chamada real).
+  // Refs espelham o estado para serem lidas dentro de callbacks de áudio.
+  const [muted, setMuted] = useState(false);
+  const [handsFree, setHandsFree] = useState(false);
+  const mutedRef = useRef(false);
+  const handsFreeRef = useRef(false);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
   const sessionId = useRef<string | null>(null);
+  const greetingRef = useRef<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const avatarWrapperRef = useRef<HTMLDivElement>(null);
@@ -62,6 +124,7 @@ export default function PersonaCall() {
     sessionId.current = null;
 
     async function restoreOrGreet(greeting: string) {
+      greetingRef.current = greeting;
       const storedSessionId = localStorage.getItem(sessionStorageKey(personaId));
       if (storedSessionId) {
         try {
@@ -162,12 +225,18 @@ export default function PersonaCall() {
   // gratuito e não depende de nenhum fornecedor externo.
   function playWithReactiveAvatar(url: string) {
     const audio = new Audio(url);
+    audioElRef.current = audio;
 
     const stop = () => {
       if (talkRafRef.current) cancelAnimationFrame(talkRafRef.current);
       talkRafRef.current = null;
       setTalkLevel(0);
       setSpeaking(false);
+      // Modo mãos-livres: quando o mentor acaba de falar, volta a ouvir —
+      // a conversa flui sem tocar em nada, como numa chamada real.
+      if (handsFreeRef.current) {
+        setTimeout(() => startListening(), 500);
+      }
     };
     audio.onended = stop;
     audio.onerror = stop;
@@ -228,6 +297,55 @@ export default function PersonaCall() {
     recognitionRef.current?.stop();
   }
 
+  function toggleMute() {
+    const next = !mutedRef.current;
+    mutedRef.current = next;
+    setMuted(next);
+    if (next && audioElRef.current) {
+      // Silencia imediatamente o que está a tocar (não só as próximas respostas).
+      audioElRef.current.pause();
+      if (talkRafRef.current) cancelAnimationFrame(talkRafRef.current);
+      talkRafRef.current = null;
+      setTalkLevel(0);
+      setSpeaking(false);
+    }
+  }
+
+  function toggleHandsFree() {
+    const next = !handsFreeRef.current;
+    handsFreeRef.current = next;
+    setHandsFree(next);
+    if (next) {
+      setMode("voz");
+      startListening();
+    } else {
+      stopListening();
+    }
+  }
+
+  async function handleReset() {
+    if (resetting || sending) return;
+    const confirmed = window.confirm(
+      "Começar de novo apaga esta conversa e tudo o que o mentor recorda dela. Continuar?"
+    );
+    if (!confirmed) return;
+
+    setResetting(true);
+    try {
+      if (sessionId.current) {
+        await deleteChatSession(sessionId.current);
+      }
+    } catch {
+      // Mesmo que o backend falhe (ex. a acordar), recomeçamos localmente —
+      // a sessão antiga fica órfã e é inofensiva.
+    } finally {
+      localStorage.removeItem(sessionStorageKey(personaId));
+      sessionId.current = null;
+      setMessages([{ role: "assistant", text: greetingRef.current }]);
+      setResetting(false);
+    }
+  }
+
   async function handleSend(overrideText?: string) {
     const text = (overrideText ?? input).trim();
     if (!text || sending) return;
@@ -241,13 +359,20 @@ export default function PersonaCall() {
       const res = await sendChatMessage(personaId, text, sessionId.current, target?.kind ?? "persona");
       sessionId.current = res.session_id;
       localStorage.setItem(sessionStorageKey(personaId), res.session_id);
-      setMessages((prev) => [...prev, { role: "assistant", text: res.reply, blocked: res.blocked }]);
-      if (res.audio_url) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: res.reply, blocked: res.blocked, sources: res.sources },
+      ]);
+      if (res.audio_url && !mutedRef.current) {
         // Mantém a animação de "a falar" enquanto o áudio toca mesmo,
         // não só até a resposta HTTP chegar — dá sensação de conversa real.
         playWithReactiveAvatar(resolveAudioUrl(res.audio_url));
       } else {
         setSpeaking(false);
+        // Sem áudio (ou silenciado), o modo mãos-livres continua a escutar.
+        if (handsFreeRef.current) {
+          setTimeout(() => startListening(), 500);
+        }
       }
     } catch (err) {
       const message =
@@ -318,6 +443,33 @@ export default function PersonaCall() {
           <span className="call-status">
             {connecting ? "a ligar…" : listening ? "a ouvir…" : speaking ? "a responder…" : "em chamada"}
           </span>
+
+          <div className="call-controls">
+            {SpeechRecognitionCtor && (
+              <button
+                type="button"
+                className={`call-control-button ${handsFree ? "call-control-active" : ""}`}
+                onClick={toggleHandsFree}
+                title={
+                  handsFree
+                    ? "Desligar modo mãos-livres"
+                    : "Modo mãos-livres: fala e ouve continuamente, sem tocar em nada"
+                }
+                aria-pressed={handsFree}
+              >
+                🎙 Mãos-livres
+              </button>
+            )}
+            <button
+              type="button"
+              className={`call-control-button ${muted ? "call-control-active" : ""}`}
+              onClick={toggleMute}
+              title={muted ? "Voltar a ouvir a voz do mentor" : "Silenciar a voz do mentor"}
+              aria-pressed={muted}
+            >
+              {muted ? "🔇 Som desligado" : "🔊 Som ligado"}
+            </button>
+          </div>
         </section>
 
         <section className="chat-panel">
@@ -329,6 +481,9 @@ export default function PersonaCall() {
                 )}
                 <div className={`chat-bubble chat-bubble-${m.role} ${m.blocked ? "chat-bubble-blocked" : ""}`}>
                   {m.text}
+                  {m.role === "assistant" && !m.blocked && m.sources !== undefined && (
+                    <MessageRoots sources={m.sources} />
+                  )}
                 </div>
               </div>
             ))}
@@ -374,6 +529,20 @@ export default function PersonaCall() {
               Enviar
             </button>
           </form>
+
+          <div className="memory-note">
+            <span>
+              Este mentor recorda o essencial das vossas conversas para te acompanhar melhor.
+            </span>
+            <button
+              type="button"
+              className="memory-reset-button"
+              onClick={handleReset}
+              disabled={resetting || sending}
+            >
+              {resetting ? "A apagar…" : "Começar de novo"}
+            </button>
+          </div>
         </section>
       </div>
     </main>

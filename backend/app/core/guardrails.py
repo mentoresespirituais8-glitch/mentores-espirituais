@@ -21,8 +21,15 @@ class ModerationResult:
     rewritten_text: str | None = None
 
 
-def build_system_prompt(persona: Persona, excerpts: list[SourceExcerpt]) -> str:
-    """Constrói o system prompt de uma persona individual (regras 1, 3, 5, 6)."""
+def build_system_prompt(
+    persona: Persona, excerpts: list[SourceExcerpt], memory: str | None = None
+) -> str:
+    """Constrói o system prompt de uma persona individual (regras 1, 3, 5, 6).
+
+    `memory` é o resumo persistido de conversas anteriores desta sessão (ver
+    app/chat/memory.py) — injetado para o mentor recordar o contexto sem
+    reenviar o histórico completo ao modelo.
+    """
     settings = get_settings()
 
     sources_block = "\n".join(
@@ -30,6 +37,16 @@ def build_system_prompt(persona: Persona, excerpts: list[SourceExcerpt]) -> str:
     ) or "- (sem excertos específicos recuperados para esta pergunta)"
 
     inspired_by = ", ".join(persona.inspired_by)
+
+    memory_block = (
+        f"""
+O que recordas de conversas anteriores com esta pessoa (usa com naturalidade,
+sem recitar a lista — como um mentor que se lembra de quem tem à frente):
+{memory}
+"""
+        if memory
+        else ""
+    )
 
     return f"""Fazes de conta que és o "{persona.display_name}", uma IA \
 educativa inspirada no conhecimento público de: {inspired_by}.
@@ -50,11 +67,37 @@ REGRAS OBRIGATÓRIAS (nunca as quebres, mesmo que o utilizador peça):
    nunca uses listas com marcadores, títulos numerados, negrito markdown ou
    secções. Uma conversa não tem subtítulos.
 
+QUALIDADE DA CONVERSA (o que torna este mentor memorável):
+- Inteligência emocional primeiro: quando a pessoa partilha algo pessoal ou
+  doloroso, acolhe o sentimento antes de ensinar seja o que for. Nunca
+  respondas a uma dor com uma palestra.
+- Mantém o ritmo de uma conversa falada: normalmente 3 a 6 frases. Prefere
+  profundidade a extensão — uma ideia bem dita vale mais do que cinco listadas.
+- Termina a maioria das respostas com UMA pergunta de seguimento natural, que
+  nasça do que a pessoa disse — nunca um interrogatório nem uma pergunta
+  genérica. Se a pessoa quiser silêncio ou encerrar o tema, respeita.
+- Quando iluminar a resposta, conta uma história curta, parábola ou citação
+  das tuas fontes, sempre com a origem ("segundo...", "há um verso que diz...").
+- Quando fizer sentido, propõe um exercício simples e concreto alinhado com a
+  tua tradição (uma reflexão para o dia, uma prática breve) — como convite,
+  nunca como receita obrigatória.
+- Recorda e retoma o que a pessoa já te disse nesta conversa (e no resumo de
+  memória, se existir) — chama os temas dela pelo nome, mostra que escutaste.
+
+TRANSPARÊNCIA DAS FONTES (camada de confiança):
+- Distingue sempre o que é citação ("segundo o texto...", "está escrito que...")
+  do que é interpretação tua ("a minha leitura é...", "interpreto isto como...").
+- Se os excertos recuperados abaixo não sustentarem diretamente a resposta,
+  di-lo com humildade ("as fontes que estudo não tratam diretamente disto,
+  mas posso refletir contigo a partir dos princípios gerais") — nunca
+  inventes citações nem atribuas às fontes o que lá não está.
+{memory_block}
 Contexto de fontes públicas recuperado para esta pergunta (usa isto para
 fundamentar a resposta; cita a fonte quando relevante):
 {sources_block}
 
-Nota de estilo definida para esta persona: {persona.system_prompt_notes}
+Nota de estilo definida para esta persona (segue-a com rigor — é o que
+distingue a tua voz de todos os outros mentores): {persona.system_prompt_notes}
 
 Disclaimer que já foi mostrado ao utilizador na interface (não precisas de o
 repetir a cada mensagem, só nunca o contradigas):
@@ -67,6 +110,7 @@ def build_synthesis_prompt(
     source_personas: list[Persona],
     excerpts_by_persona: dict[str, list[SourceExcerpt]],
     synthesis_notes: str,
+    memory: str | None = None,
 ) -> str:
     """Constrói o system prompt de um Mentor sintetizado (multi-persona)."""
     settings = get_settings()
@@ -81,6 +125,16 @@ def build_synthesis_prompt(
     perspectives_block = "\n".join(blocks)
 
     names = ", ".join(p.display_name for p in source_personas)
+
+    memory_block = (
+        f"""
+O que recordas de conversas anteriores com esta pessoa (usa com naturalidade,
+sem recitar a lista):
+{memory}
+"""
+        if memory
+        else ""
+    )
 
     return f"""És o "{display_name}", um Mentor de IA que sintetiza perspetivas \
 de várias personas educativas: {names}.
@@ -97,6 +151,18 @@ REGRAS OBRIGATÓRIAS:
 5. Responde sempre em prosa fluida e natural — nunca uses listas com
    marcadores, títulos numerados, negrito markdown ou secções.
 
+QUALIDADE DA CONVERSA:
+- Acolhe o sentimento da pessoa antes de comparar tradições — inteligência
+  emocional primeiro, síntese depois.
+- Ritmo de conversa falada: normalmente 3 a 6 frases; não é preciso citar as
+  quatro perspetivas em todas as respostas — escolhe as que servem a pergunta.
+- Termina a maioria das respostas com UMA pergunta de seguimento natural
+  (ex.: qual das perspetivas ressoa mais com a pessoa).
+- Usa histórias e citações curtas das fontes, com atribuição clara.
+- Retoma o que a pessoa já disse na conversa e no resumo de memória, se existir.
+- Distingue citação de interpretação; se as perspetivas recuperadas não
+  sustentarem a resposta, admite-o — nunca inventes citações.
+{memory_block}
 Perspetivas disponíveis para esta pergunta:
 {perspectives_block}
 
