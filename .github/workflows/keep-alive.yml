@@ -1,0 +1,23 @@
+# Mantém o backend gratuito do Render acordado (ele adormece após ~15 min sem
+# visitas, e o primeiro pedido seguinte demora até um minuto — péssima
+# primeira impressão). Um toque leve no /health a cada 14 minutos evita-o.
+#
+# Custo: 0€ (dentro dos limites gratuitos do GitHub Actions; o plano free do
+# Render dá 750h/mês e um mês inteiro são ~720h — cabe por folga).
+# Para desligar: apagar este ficheiro ou desativar o workflow no GitHub.
+name: Manter backend acordado
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tocar no /health do backend
+        run: |
+          curl --fail --silent --show-error --max-time 90 \
+            https://mentores-espirituais-backend.onrender.com/health || \
+            echo "Backend não respondeu desta vez — o próximo ping tenta de novo."

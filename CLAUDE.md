@@ -96,6 +96,29 @@ uma fase por terminada.
 - **Marketing**: nunca anunciar "fala com Jesus/Buda" — sempre "explora
   ensinamentos através de mentores virtuais de IA".
 
+## Melhorias de experiência sem custos (Bloco A, 2026-07-19)
+
+- **Voz multiprovedor** (`app/chat/tts.py`): TTS_PROVIDER escolhe o motor —
+  "edge" (predefinido; vozes neurais pt-PT gratuitas Duarte/Raquel com perfil
+  próprio por mentor: ritmo/tom distintos) ou "gtts". O gTTS é SEMPRE o
+  fallback automático e nunca deve ser removido (edge-tts é serviço
+  não-oficial). Regra de ouro: a voz nunca bloqueia o texto — falha total
+  devolve audio_url=null. Preparado para ElevenLabs/Azure por env var.
+- **Keep-alive** (`.github/workflows/keep-alive.yml`): GitHub Actions toca no
+  /health do Render a cada 14 min — elimina o cold start (750h/mês do plano
+  free chegam para 24/7). Desligar = desativar o workflow.
+- **Boca por frequências** (PersonaCall + styles.css): além do volume
+  (--talk-level), a boca reage ao equilíbrio graves/agudos (--talk-round) —
+  sons redondos (o/u) estreitam e abrem, sons largos (i/e) esticam. Visema
+  aproximado sem fornecedor externo. Lip-sync real continua adiado (decisão:
+  só com validação de utilizadores + orçamento).
+- **Plano estratégico completo** (análise ChatGPT 2026-07-19, "prompt
+  mestre"): próximos blocos possíveis — B: boas-vindas dinâmicas variadas,
+  universos visuais por mentor, entrada cinematográfica leve, sons opcionais;
+  C: Mesa Redonda da Sabedoria (vários mentores respondem + síntese final);
+  D: moderação de 2ª linha por modelo, instrumentação anónima,
+  acessibilidade. Implementar por blocos, testando entre cada um.
+
 ## Estado das fases (2026-07-17)
 
 1. ✅ Análise completa

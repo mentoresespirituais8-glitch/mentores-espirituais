@@ -71,8 +71,8 @@ const BASE = API_ORIGIN ? API_ORIGIN : "/api";
 // um minuto (ou falha ao nível da rede enquanto o serviço arranca). Sem
 // isto, o utilizador via um "Failed to fetch" críptico em inglês.
 const WAKE_MESSAGE =
-  "O mentor está a acordar — o servidor adormece quando ninguém o visita. " +
-  "Aguarda um minuto e tenta novamente.";
+  "O espaço do mentor está a ser preparado — leva até um minuto na primeira " +
+  "visita. Aguarda um pouco e tenta novamente.";
 
 async function safeFetch(input: string, init?: RequestInit): Promise<Response> {
   let res: Response;

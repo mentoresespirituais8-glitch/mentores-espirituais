@@ -18,7 +18,9 @@ python-dotenv==1.0.1
 # pesquisa por palavra-chave (ver app/personas/service.py).
 fastembed==0.8.0
 
-# Texto-para-fala das respostas do mentor sintetizado (app/chat/router.py).
+# Voz dos mentores (app/chat/tts.py): edge-tts é o fornecedor predefinido
+# (vozes neurais pt-PT gratuitas); gtts é o fallback automático.
+edge-tts>=6.1
 gtts==2.5.4
 
 # Testes

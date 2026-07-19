@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import os
-import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from gtts import gTTS
 from sqlalchemy.orm import Session
 
-from app.chat import memory
+from app.chat import memory, tts
 from app.chat.rate_limit import enforce_rate_limit
 from app.core.config import get_settings
 from app.core.guardrails import (
@@ -31,32 +28,8 @@ from app.personas.schemas import (
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-_AUDIO_DIR = os.path.join("static", "audio")
-_AUDIO_MAX_AGE_SECONDS = 3600
-
-
-def _limpar_audios_antigos() -> None:
-    """Apaga MP3s gerados há mais de 1h. Chamado a cada geração — sem scheduler,
-    suficiente para o volume de um único servidor de desenvolvimento/MVP."""
-    limite = time.time() - _AUDIO_MAX_AGE_SECONDS
-    for nome in os.listdir(_AUDIO_DIR):
-        caminho = os.path.join(_AUDIO_DIR, nome)
-        if os.path.isfile(caminho) and os.path.getmtime(caminho) < limite:
-            os.remove(caminho)
-
-
-def criar_audio(texto: str, speaking_pace: str = "normal") -> str:
-    """Gera um MP3 com nome único e devolve o URL público (servido em app.main
-    via StaticFiles). speaking_pace vem de avatar.speaking_pace de cada persona
-    (ver app/personas/models.py) — o único ajuste de entrega que o TTS
-    genérico permite sem fornecedor pago; ainda assim aproxima o ritmo da
-    fala ao TOM DE VOZ já descrito no system_prompt_notes de cada uma."""
-    os.makedirs(_AUDIO_DIR, exist_ok=True)
-    _limpar_audios_antigos()
-    nome_ficheiro = f"{uuid.uuid4()}.mp3"
-    caminho = os.path.join(_AUDIO_DIR, nome_ficheiro)
-    gTTS(text=texto, lang="pt", slow=(speaking_pace == "lenta")).save(caminho)
-    return f"/static/audio/{nome_ficheiro}"
+# A geração de voz vive em app/chat/tts.py (camada multiprovedor com fallback
+# — ver docstring desse módulo). Aqui só se chama tts.sintetizar().
 
 
 def _load_history(db: Session, session_id: str) -> list[dict[str, str]]:
@@ -184,7 +157,9 @@ def chat_with_persona(
         persona_id=persona_id,
         session_id=sid,
         reply=draft_reply,
-        audio_url=criar_audio(draft_reply, persona.avatar.speaking_pace),
+        audio_url=tts.sintetizar(
+            draft_reply, persona_id=persona.id, speaking_pace=persona.avatar.speaking_pace
+        ),
         disclaimer=settings.disclaimer_text,
         sources=[
             ResponseSource(source_title=e.source_title, excerpt=e.text) for e in excerpts
@@ -246,7 +221,7 @@ def chat_with_synthesized_mentor(
         persona_id=mentor_id,
         session_id=sid,
         reply=draft_reply,
-        audio_url=criar_audio(draft_reply),
+        audio_url=tts.sintetizar(draft_reply, persona_id=mentor_id),
         disclaimer=settings.disclaimer_text,
         sources=[
             ResponseSource(

@@ -1352,8 +1352,13 @@ a {
   transform-origin: top center;
   /* Ao abrir mais (volume alto), estreita ligeiramente na horizontal — as
      bocas reais arredondam quando abrem, não esticam só na vertical. */
-  transform: scaleY(calc(0.15 + var(--talk-level, 0) * 1.3))
-    scaleX(calc(1 - var(--talk-level, 0) * 0.16));
+  /* --talk-round (0 = som largo tipo "i/e", 1 = som redondo tipo "o/u"),
+     derivado das frequências reais da voz em PersonaCall: sons redondos
+     estreitam mais a boca na horizontal e abrem-na ligeiramente mais. */
+  transform: scaleY(
+      calc(0.15 + var(--talk-level, 0) * (1.15 + var(--talk-round, 0.5) * 0.45))
+    )
+    scaleX(calc(1 - var(--talk-level, 0) * (0.06 + var(--talk-round, 0.5) * 0.3)));
   opacity: calc(0.35 + var(--talk-level, 0) * 0.8);
   transition: transform 0.07s ease-out, opacity 0.07s ease-out;
   pointer-events: none;

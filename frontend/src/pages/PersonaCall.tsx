@@ -308,8 +308,13 @@ export default function PersonaCall() {
     };
   }, []);
 
-  function setTalkLevel(level: number) {
-    avatarWrapperRef.current?.style.setProperty("--talk-level", level.toFixed(3));
+  function setTalkLevel(level: number, roundness = 0) {
+    const el = avatarWrapperRef.current;
+    if (!el) return;
+    el.style.setProperty("--talk-level", level.toFixed(3));
+    // 0 = som "largo" (i/e/s, boca esticada) … 1 = som "redondo" (o/u, boca
+    // arredondada). Derivado do equilíbrio graves/agudos — visema aproximado.
+    el.style.setProperty("--talk-round", roundness.toFixed(3));
   }
 
   // Sincroniza a animação do avatar com o volume real do áudio a tocar (em
@@ -350,10 +355,21 @@ export default function PersonaCall() {
       analyser.connect(audioCtx.destination);
 
       const data = new Uint8Array(analyser.frequencyBinCount);
+      // Bandas aproximadas para voz (fftSize 256 → ~86 Hz por bin @44.1kHz):
+      // graves 90-900 Hz dominam em vogais fechadas/redondas (o, u, m);
+      // agudos 1.7-6 kHz dominam em vogais abertas largas e sibilantes (i, e, s).
+      const LOW_START = 1, LOW_END = 10, HIGH_START = 20, HIGH_END = 70;
       const tick = () => {
         analyser.getByteFrequencyData(data);
         const avg = data.reduce((sum, v) => sum + v, 0) / data.length;
-        setTalkLevel(avg / 255);
+        let low = 0;
+        for (let i = LOW_START; i < LOW_END; i++) low += data[i];
+        low /= LOW_END - LOW_START;
+        let high = 0;
+        for (let i = HIGH_START; i < HIGH_END; i++) high += data[i];
+        high /= HIGH_END - HIGH_START;
+        const roundness = low + high > 12 ? low / (low + high) : 0.5;
+        setTalkLevel(avg / 255, roundness);
         talkRafRef.current = requestAnimationFrame(tick);
       };
       audio.onplay = () => tick();
