@@ -83,3 +83,23 @@ def test_chat_history_for_unknown_session_is_empty(client):
     res = client.get("/chat/session/sessao-que-nao-existe")
     assert res.status_code == 200
     assert res.json()["messages"] == []
+
+
+def test_welcome_for_unknown_persona_returns_404(client):
+    res = client.post(
+        "/chat/persona/nao-existe-123/welcome", json={"session_id": "qualquer"}
+    )
+    assert res.status_code == 404
+
+
+def test_welcome_without_context_returns_null_reply(client):
+    """Sem GEMINI_API_KEY (testes) ou sem histórico suficiente, o reencontro
+    devolve reply=None e o frontend mantém a saudação fixa — nunca inventa."""
+    res = client.post(
+        "/chat/persona/allan-kardec-01/welcome",
+        json={"session_id": "sessao-sem-historico"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["reply"] is None
+    assert body["audio_url"] is None

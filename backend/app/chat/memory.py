@@ -31,9 +31,10 @@ UPDATE_EVERY = 8
 _SUMMARY_PROMPT = """Resume a conversa abaixo entre um utilizador e um mentor \
 educativo de IA, para servir de memória em conversas futuras. Escreve em \
 português de Portugal, em prosa compacta (máximo 180 palavras), na terceira \
-pessoa, preservando: o que o utilizador partilhou sobre a sua vida e estado \
-emocional; os temas que mais lhe importam; conselhos, histórias ou exercícios \
-que o mentor já propôs; e qualquer preferência expressa pelo utilizador. \
+pessoa, preservando: o nome do utilizador (ou como gosta de ser tratado), se \
+o tiver dito; o que partilhou sobre a sua vida e estado emocional; os temas \
+que mais lhe importam; conselhos, histórias ou exercícios que o mentor já \
+propôs; e qualquer preferência expressa pelo utilizador. \
 Não inventes nada que não esteja na conversa.
 
 Resumo existente (a atualizar, pode estar vazio):

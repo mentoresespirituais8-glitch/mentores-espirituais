@@ -151,6 +151,28 @@ export async function fetchChatHistory(sessionId: string): Promise<ChatHistoryRe
   return res.json();
 }
 
+export interface WelcomeBackResponse {
+  session_id: string;
+  reply: string | null;
+  audio_url: string | null;
+}
+
+/** Reencontro dinâmico: boas-vindas geradas a partir da memória da sessão.
+ * reply=null significa "sem contexto suficiente" — usar a saudação fixa. */
+export async function fetchWelcomeBack(
+  targetId: string,
+  sessionId: string,
+  kind: "persona" | "mentor" = "persona"
+): Promise<WelcomeBackResponse> {
+  const res = await safeFetch(`${BASE}/chat/${kind}/${targetId}/welcome`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+  if (!res.ok) throw new Error("Falha ao preparar o reencontro");
+  return res.json();
+}
+
 export async function sendChatMessage(
   personaId: string,
   message: string,

@@ -24,6 +24,8 @@ from app.personas.schemas import (
     ChatMessageIn,
     ChatMessageOut,
     ResponseSource,
+    WelcomeIn,
+    WelcomeOut,
 )
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -236,6 +238,102 @@ def chat_with_synthesized_mentor(
             for e in excerpts_by_persona.get(persona.id, [])
         ],
         safety_notice=CRISIS_SUPPORT_NOTICE if crisis else None,
+    )
+
+
+# Reencontro dinâmico (decisão do Hugo, 2026-07-21): quando a pessoa regressa
+# a uma sessão com histórico, o mentor recebe-a como um amigo que se lembra —
+# retoma um tema concreto em vez da saudação fixa. Passa pelos guardrails
+# (build_system_prompt + moderate_response) como qualquer resposta; a mensagem
+# fica guardada no histórico para o mentor saber o que disse.
+_WELCOME_INSTRUCTION = (
+    "A pessoa acabou de regressar para falar contigo outra vez. Dá-lhe umas "
+    "boas-vindas de reencontro breves — no máximo 2 frases curtas — como um "
+    "amigo que se lembra dela: se souberes o nome, usa-o; retoma UM tema "
+    "concreto das vossas conversas anteriores com uma pergunta suave de "
+    "reencontro. Não resumas a conversa e não menciones 'memória', 'resumo' "
+    "nem 'registos'."
+)
+
+
+@router.post(
+    "/persona/{persona_id}/welcome",
+    response_model=WelcomeOut,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+def welcome_back_persona(
+    persona_id: str, payload: WelcomeIn, db: Session = Depends(get_db_session)
+) -> WelcomeOut:
+    persona = service.get_persona(persona_id)
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Persona não encontrada")
+
+    settings = get_settings()
+    sid = payload.session_id
+    history = _load_history(db, sid)
+    memory_row = memory.load_memory(db, sid)
+
+    # Sem chave de API ou sem contexto suficiente (conversa demasiado curta e
+    # sem resumo de memória), o frontend mantém a saudação fixa.
+    if not settings.gemini_api_key or (memory_row is None and len(history) < 4):
+        return WelcomeOut(session_id=sid)
+
+    system_prompt = build_system_prompt(
+        persona, [], memory=memory_row.summary if memory_row else None
+    )
+    draft = _call_llm(system_prompt, memory.recent_history(history), _WELCOME_INSTRUCTION)
+    moderation = moderate_response(persona.display_name, draft)
+    if not moderation.allowed:
+        return WelcomeOut(session_id=sid)
+
+    _save_turn(db, sid, "assistant", draft)
+    return WelcomeOut(
+        session_id=sid,
+        reply=draft,
+        audio_url=tts.sintetizar(
+            draft, persona_id=persona.id, speaking_pace=persona.avatar.speaking_pace
+        ),
+    )
+
+
+@router.post(
+    "/mentor/{mentor_id}/welcome",
+    response_model=WelcomeOut,
+    dependencies=[Depends(enforce_rate_limit)],
+)
+def welcome_back_mentor(
+    mentor_id: str, payload: WelcomeIn, db: Session = Depends(get_db_session)
+) -> WelcomeOut:
+    mentor = service.get_synthesis(mentor_id)
+    if mentor is None:
+        raise HTTPException(status_code=404, detail="Mentor não encontrado")
+
+    settings = get_settings()
+    sid = payload.session_id
+    history = _load_history(db, sid)
+    memory_row = memory.load_memory(db, sid)
+
+    if not settings.gemini_api_key or (memory_row is None and len(history) < 4):
+        return WelcomeOut(session_id=sid)
+
+    source_personas = service.resolve_synthesis_sources(mentor)
+    system_prompt = build_synthesis_prompt(
+        mentor.display_name,
+        source_personas,
+        {persona.id: [] for persona in source_personas},
+        mentor.synthesis_prompt_notes,
+        memory=memory_row.summary if memory_row else None,
+    )
+    draft = _call_llm(system_prompt, memory.recent_history(history), _WELCOME_INSTRUCTION)
+    moderation = moderate_response(mentor.display_name, draft)
+    if not moderation.allowed:
+        return WelcomeOut(session_id=sid)
+
+    _save_turn(db, sid, "assistant", draft)
+    return WelcomeOut(
+        session_id=sid,
+        reply=draft,
+        audio_url=tts.sintetizar(draft, persona_id=mentor_id),
     )
 
 

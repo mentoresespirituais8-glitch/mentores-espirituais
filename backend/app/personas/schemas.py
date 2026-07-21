@@ -25,6 +25,22 @@ class ChatMessageIn(BaseModel):
     intention: str | None = None
 
 
+class WelcomeIn(BaseModel):
+    """Pedido de boas-vindas de reencontro (sessão existente)."""
+
+    session_id: str
+
+
+class WelcomeOut(BaseModel):
+    """Boas-vindas geradas a partir da memória da sessão. reply=None significa
+    que não há contexto suficiente (ou modo dev) — o frontend usa a saudação
+    fixa nesse caso."""
+
+    session_id: str
+    reply: str | None = None
+    audio_url: str | None = None
+
+
 class ResponseSource(BaseModel):
     """Uma 'raiz' da resposta: excerto real das fontes públicas usado pelo RAG
     para fundamentar a resposta do mentor (painel 'Ver as raízes desta

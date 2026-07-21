@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import Avatar from "../components/Avatar";
-import { deleteChatSession, fetchChatHistory, fetchPersonas, fetchSynthesizedMentors, resolveAudioUrl, sendChatMessage, type ResponseSource } from "../lib/api";
+import { deleteChatSession, fetchChatHistory, fetchPersonas, fetchSynthesizedMentors, fetchWelcomeBack, resolveAudioUrl, sendChatMessage, type ResponseSource } from "../lib/api";
 import { PERSONA_GREETINGS, SYNTHESIS_GREETING } from "../lib/greetings";
 
 // A sessão fica presa ao mentor no browser deste utilizador — o mentor não
@@ -256,7 +256,7 @@ export default function PersonaCall() {
     setIntention(null);
     setShowIntention(false);
 
-    async function restoreOrGreet(greeting: string) {
+    async function restoreOrGreet(greeting: string, kind: "persona" | "mentor" = "persona") {
       greetingRef.current = greeting;
       const storedSessionId = localStorage.getItem(sessionStorageKey(personaId));
       if (storedSessionId) {
@@ -266,6 +266,28 @@ export default function PersonaCall() {
             sessionId.current = storedSessionId;
             setMessages(history.messages.map((m) => ({ role: m.role, text: m.content })));
             setIntention(localStorage.getItem(intentionStorageKey(personaId)));
+
+            // Reencontro dinâmico: o mentor recebe quem volta como um amigo
+            // que se lembra — gerado da memória da sessão, com guardrails.
+            // Se não houver contexto suficiente (reply null) não acontece nada.
+            const expectedLen = history.messages.length;
+            fetchWelcomeBack(personaId, storedSessionId, kind)
+              .then((welcome) => {
+                if (!welcome.reply) return;
+                setMessages((prev) =>
+                  // Só acrescenta se entretanto a pessoa não escreveu nada.
+                  prev.length === expectedLen
+                    ? [...prev, { role: "assistant", text: welcome.reply!, ts: Date.now() }]
+                    : prev
+                );
+                if (welcome.audio_url && !mutedRef.current) {
+                  setSpeaking(true);
+                  playWithReactiveAvatar(resolveAudioUrl(welcome.audio_url));
+                }
+              })
+              .catch(() => {
+                // Reencontro é um extra — falhar nunca pode partir a conversa.
+              });
             return;
           }
         } catch {
@@ -330,7 +352,7 @@ export default function PersonaCall() {
             kind: "mentor",
             avatarAsset: mentor.avatar_asset,
           });
-          restoreOrGreet(SYNTHESIS_GREETING);
+          restoreOrGreet(SYNTHESIS_GREETING, "mentor");
           return;
         }
 
