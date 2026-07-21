@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import DisclaimerBanner from "../components/DisclaimerBanner";
 import Avatar from "../components/Avatar";
@@ -177,6 +177,10 @@ export default function PersonaCall() {
   // Refs espelham o estado para serem lidas dentro de callbacks de áudio.
   const [muted, setMuted] = useState(false);
   const [handsFree, setHandsFree] = useState(false);
+  // Vista da página (decisão do Hugo, 2026-07-21): por defeito uma conversa
+  // estilo WhatsApp/Messenger (wallpaper com a imagem do mentor); o botão 🎥
+  // muda para o ecrã de videochamada a ecrã inteiro, como numa chamada real.
+  const [callMode, setCallMode] = useState(false);
   const mutedRef = useRef(false);
   const handsFreeRef = useRef(false);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
@@ -535,8 +539,15 @@ export default function PersonaCall() {
     <main className="call-page">
       <DisclaimerBanner />
 
-      <div className="call-layout">
-        <section className="video-panel">
+      <div className={`call-layout ${callMode ? "layout-call" : "layout-chat"}`}>
+        <section
+          className="video-panel"
+          style={
+            target.avatarAsset
+              ? ({ "--persona-wallpaper": `url(/${target.avatarAsset})` } as CSSProperties)
+              : undefined
+          }
+        >
           <Link to="/" className="leave-call-button" title="Sair da chamada" aria-label="Sair da chamada">
             ← Sair
           </Link>
@@ -593,7 +604,8 @@ export default function PersonaCall() {
                 }
                 aria-pressed={handsFree}
               >
-                🎙 Mãos-livres
+                <span className="ctl-icon" aria-hidden="true">🎙</span>
+                <span className="ctl-label"> Mãos-livres</span>
               </button>
             )}
             <button
@@ -603,7 +615,8 @@ export default function PersonaCall() {
               title={muted ? "Voltar a ouvir a voz do mentor" : "Silenciar a voz do mentor"}
               aria-pressed={muted}
             >
-              {muted ? "🔇 Som desligado" : "🔊 Som ligado"}
+              <span className="ctl-icon" aria-hidden="true">{muted ? "🔇" : "🔊"}</span>
+              <span className="ctl-label">{muted ? " Som desligado" : " Som ligado"}</span>
             </button>
             <button
               type="button"
@@ -612,13 +625,87 @@ export default function PersonaCall() {
               disabled={sending || resetting || messages.length < 3}
               title="Pedir ao mentor uma breve reflexão final sobre a conversa de hoje"
             >
-              🕯 Encerrar com reflexão
+              <span className="ctl-icon" aria-hidden="true">🕯</span>
+              <span className="ctl-label"> Encerrar com reflexão</span>
+            </button>
+            <button
+              type="button"
+              className="call-control-button call-back-to-chat"
+              onClick={() => setCallMode(false)}
+              title="Voltar à conversa de mensagens"
+            >
+              <span className="ctl-icon" aria-hidden="true">💬</span>
+              <span className="ctl-label"> Mensagens</span>
             </button>
           </div>
         </section>
 
         <section className="chat-panel">
-          <div className="chat-messages" ref={scrollRef}>
+          {/* Cabeçalho estilo WhatsApp: avatar pequeno, nome, estado e ações.
+              O botão 🎥 muda para o ecrã de videochamada. */}
+          <header className="chat-header">
+            <Link to="/" className="chat-header-back" title="Sair da conversa" aria-label="Sair da conversa">
+              ←
+            </Link>
+            <Avatar
+              assetPath={target.avatarAsset}
+              name={target.display_name}
+              eager
+              className="chat-header-avatar"
+            />
+            <div className="chat-header-meta">
+              <strong>{target.display_name}</strong>
+              <span className="chat-header-status">
+                {connecting
+                  ? "a ligar…"
+                  : listening
+                    ? "a ouvir…"
+                    : sending || speaking
+                      ? "a escrever…"
+                      : "online"}
+                {intention ? ` · 🧭 ${intention}` : ""}
+              </span>
+            </div>
+            <div className="chat-header-actions">
+              <button
+                type="button"
+                onClick={() => handleSend(REFLECTION_REQUEST)}
+                disabled={sending || resetting || messages.length < 3}
+                title="Encerrar com uma breve reflexão sobre a conversa"
+                aria-label="Encerrar com reflexão"
+              >
+                🕯
+              </button>
+              <button
+                type="button"
+                onClick={toggleMute}
+                title={muted ? "Voltar a ouvir a voz do mentor" : "Silenciar a voz do mentor"}
+                aria-pressed={muted}
+                aria-label={muted ? "Som desligado" : "Som ligado"}
+              >
+                {muted ? "🔇" : "🔊"}
+              </button>
+              <button
+                type="button"
+                className="chat-header-call"
+                onClick={() => setCallMode(true)}
+                title="Passar para videochamada"
+                aria-label="Passar para videochamada"
+              >
+                🎥
+              </button>
+            </div>
+          </header>
+
+          <div
+            className="chat-messages"
+            ref={scrollRef}
+            style={
+              target.avatarAsset
+                ? ({ "--persona-wallpaper": `url(/${target.avatarAsset})` } as CSSProperties)
+                : undefined
+            }
+          >
             {messages.map((m, i) => (
               <div key={i} className={`chat-row chat-row-${m.role}`}>
                 {m.role === "assistant" && (

@@ -1494,6 +1494,139 @@ a {
   min-height: 0;
 }
 
+/* ---------- Vistas da página de chamada (decisão do Hugo, 2026-07-21):
+   conversa estilo WhatsApp por defeito; 🎥 muda para chamada a ecrã
+   inteiro. ---------- */
+.call-layout.layout-chat {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.layout-chat .video-panel {
+  display: none;
+}
+
+.call-layout.layout-call {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.layout-call .chat-panel {
+  display: none;
+}
+
+/* Ecrã de videochamada tipo WhatsApp: a imagem do mentor desfocada a
+   preencher o fundo, avatar grande ao centro, botões redondos em baixo. */
+.layout-call .video-panel {
+  background:
+    linear-gradient(rgba(8, 9, 18, 0.72), rgba(8, 9, 18, 0.9)),
+    var(--persona-wallpaper, linear-gradient(var(--panel), var(--panel))) center / cover
+      no-repeat;
+  justify-content: center;
+}
+
+.layout-call .call-controls {
+  margin-top: 1.25rem;
+  gap: 1rem;
+}
+
+/* Botões redondos só com o ícone, como numa chamada do WhatsApp — o texto
+   fica acessível no title/aria. */
+.layout-call .call-control-button {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  font-size: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+}
+
+.layout-call .ctl-label {
+  display: none;
+}
+
+/* Cabeçalho estilo WhatsApp: avatar pequeno, nome, estado, ações. */
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-header-back {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.2rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+}
+
+.chat-header-back:hover {
+  background: var(--panel-2);
+}
+
+.chat-header-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.chat-header-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.25;
+}
+
+.chat-header-meta strong {
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.chat-header-actions button {
+  background: none;
+  border: none;
+  font-size: 1.15rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chat-header-actions button:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+.chat-header-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -1501,6 +1634,12 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  /* Wallpaper estilo WhatsApp: a imagem do mentor suave e escurecida por
+     baixo das mensagens — vê-se com quem se fala, sem custar a leitura. */
+  background:
+    linear-gradient(rgba(10, 11, 22, 0.82), rgba(10, 11, 22, 0.88)),
+    var(--persona-wallpaper, linear-gradient(var(--bg), var(--bg))) center 20% / cover
+      no-repeat;
 }
 
 .chat-row {
@@ -1522,21 +1661,24 @@ a {
 }
 
 .chat-bubble {
-  max-width: 65%;
-  padding: 0.6rem 0.9rem;
-  border-radius: 12px;
+  max-width: 72%;
+  padding: 0.55rem 0.85rem;
   line-height: 1.4;
   font-size: 0.92rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
+/* Cantos assimétricos com "bico" junto ao remetente, como no WhatsApp. */
 .chat-bubble-user {
   background: var(--accent);
   color: #0f1115;
+  border-radius: 14px 14px 4px 14px;
 }
 
 .chat-bubble-assistant {
   background: var(--panel-2);
   border: 1px solid var(--border);
+  border-radius: 14px 14px 14px 4px;
 }
 
 .chat-bubble-blocked {
