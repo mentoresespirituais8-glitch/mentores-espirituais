@@ -561,6 +561,54 @@ a {
   font-size: 1.1rem;
 }
 
+/* Versão curta e botão "Ler tudo" só existem no telemóvel. */
+.disclaimer-short,
+.disclaimer-toggle {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .disclaimer-banner {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .disclaimer-icon {
+    font-size: 0.9rem;
+  }
+
+  /* Recolhido: só a linha curta; expandido: o texto completo. O aviso
+     mantém-se sempre visível (regra 4 de docs/LEGAL-GUARDRAILS.md). */
+  .disclaimer-banner:not(.disclaimer-expanded) .disclaimer-full {
+    display: none;
+  }
+
+  .disclaimer-expanded .disclaimer-short {
+    display: none;
+  }
+
+  .disclaimer-short {
+    display: block;
+    flex: 1;
+  }
+
+  .disclaimer-toggle {
+    display: inline-block;
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 0.72rem;
+    text-decoration: underline;
+    padding: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
 /* ---------- Home page ---------- */
 .home-page {
   max-width: 1160px;

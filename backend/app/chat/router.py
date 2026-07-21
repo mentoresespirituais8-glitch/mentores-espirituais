@@ -85,7 +85,12 @@ def _call_llm(system_prompt: str, history: list[dict[str, str]], user_message: s
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                max_output_tokens=1024,
+                # 480 tokens ≈ 7-8 frases em português — margem folgada para o
+                # limite de 3-6 frases dos prompts, mas trava os "muros de
+                # texto" que tornavam a resposta lenta (20-60s), bloqueavam a
+                # caixa de escrita e cortavam a voz a meio (limite de 1500
+                # caracteres do TTS). Decisão do Hugo, 2026-07-21.
+                max_output_tokens=480,
                 # Sem isto, o modelo gasta a maior parte do orçamento de tokens a
                 # "pensar" internamente antes de responder, deixando pouco ou
                 # nada para a resposta visível (respostas cortadas a meio).
