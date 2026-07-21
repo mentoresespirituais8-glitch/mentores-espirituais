@@ -91,7 +91,6 @@ export default function HomePage() {
 
         <SearchBar value={search} onChange={setSearch} />
 
-        {loading && <p>A carregar mentores…</p>}
         {error && <p className="error-message">{error}</p>}
 
         <section id="mentores" className="reveal" aria-labelledby="mentores-heading">
@@ -110,6 +109,17 @@ export default function HomePage() {
           )}
 
           <div className="persona-grid">
+            {/* Enquanto o backend acorda/responde, cartões-esqueleto a pulsar
+                no lugar dos mentores — nunca uma zona vazia. */}
+            {loading &&
+              [0, 1, 2, 3].map((i) => (
+                <div key={i} className="persona-card skeleton-card" aria-hidden="true">
+                  <div className="skeleton-avatar" />
+                  <div className="skeleton-line skeleton-line-wide" />
+                  <div className="skeleton-line" />
+                  <div className="skeleton-line skeleton-line-short" />
+                </div>
+              ))}
             {filteredPersonas.map((persona) => (
               <PersonaCard key={persona.id} persona={persona} onOpenProfile={openPersonaProfile} />
             ))}

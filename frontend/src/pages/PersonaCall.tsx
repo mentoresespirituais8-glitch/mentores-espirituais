@@ -32,6 +32,51 @@ const REFLECTION_REQUEST =
   "Antes de terminarmos, oferece-me uma breve reflexão sobre a nossa conversa " +
   "de hoje — o essencial que explorámos e algo simples que eu possa levar comigo.";
 
+/**
+ * Divide a resposta do mentor em 2-4 bolhas curtas, como mensagens seguidas
+ * de um amigo no WhatsApp. Prefere as quebras de parágrafo que os prompts
+ * pedem ao modelo (linha em branco); sem parágrafos, agrupa frases até um
+ * comprimento confortável. O texto guardado no histórico continua inteiro —
+ * isto é só apresentação.
+ */
+const MAX_BUBBLES = 4;
+const TARGET_BUBBLE_CHARS = 220;
+
+function splitIntoBubbles(text: string): string[] {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  let parts = paragraphs;
+
+  if (parts.length <= 1 && text.length > TARGET_BUBBLE_CHARS * 1.4) {
+    // Sem parágrafos: agrupa frases inteiras até ~TARGET_BUBBLE_CHARS.
+    const sentences = text.match(/[^.!?…]+[.!?…]+["»”)]?\s*|[^.!?…]+$/g) ?? [text];
+    parts = [];
+    let current = "";
+    for (const s of sentences) {
+      if (current && (current + s).length > TARGET_BUBBLE_CHARS) {
+        parts.push(current.trim());
+        current = s;
+      } else {
+        current += s;
+      }
+    }
+    if (current.trim()) parts.push(current.trim());
+  }
+
+  if (parts.length > MAX_BUBBLES) {
+    // Junta o excedente na última bolha — nunca cortar conteúdo.
+    parts = [...parts.slice(0, MAX_BUBBLES - 1), parts.slice(MAX_BUBBLES - 1).join("\n\n")];
+  }
+  return parts.length > 0 ? parts : [text];
+}
+
+/** Hora curta estilo WhatsApp (ex. 18:42) para as mensagens desta sessão. */
+function formatBubbleTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+}
+
 // Web Speech API — sem tipos oficiais no TS/DOM lib e só disponível com
 // prefixo "webkit" em Chrome/Edge; Safari e Firefox ainda não suportam.
 // TODO(pagamento): quando existirem contas de utilizador, ligar aqui a
@@ -49,6 +94,8 @@ interface Message {
   sources?: ResponseSource[];
   /** Aviso de segurança com linhas de apoio (ver safety_notice na API). */
   safetyNotice?: string | null;
+  /** Momento de envio — só para mensagens desta sessão (hora nas bolhas). */
+  ts?: number;
 }
 
 /**
@@ -181,6 +228,16 @@ export default function PersonaCall() {
   // estilo WhatsApp/Messenger (wallpaper com a imagem do mentor); o botão 🎥
   // muda para o ecrã de videochamada a ecrã inteiro, como numa chamada real.
   const [callMode, setCallMode] = useState(false);
+  // Revelação progressiva das bolhas da ÚLTIMA resposta do mentor — as bolhas
+  // aparecem uma a uma com "a escrever…" entre elas, como um amigo a mandar
+  // mensagens seguidas. null = mostrar tudo (histórico, saudações).
+  const [revealShown, setRevealShown] = useState<number | null>(null);
+  const revealTimersRef = useRef<number[]>([]);
+
+  function clearRevealTimers() {
+    revealTimersRef.current.forEach((t) => clearTimeout(t));
+    revealTimersRef.current = [];
+  }
   const mutedRef = useRef(false);
   const handsFreeRef = useRef(false);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
@@ -290,10 +347,13 @@ export default function PersonaCall() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, sending]);
+  }, [messages, sending, revealShown]);
 
   useEffect(() => {
-    return () => recognitionRef.current?.stop();
+    return () => {
+      recognitionRef.current?.stop();
+      clearRevealTimers();
+    };
   }, [personaId]);
 
   useEffect(() => {
@@ -473,7 +533,9 @@ export default function PersonaCall() {
     const text = (overrideText ?? input).trim();
     if (!text || sending) return;
 
-    setMessages((prev) => [...prev, { role: "user", text }]);
+    clearRevealTimers();
+    setRevealShown(null);
+    setMessages((prev) => [...prev, { role: "user", text, ts: Date.now() }]);
     setInput("");
     setSending(true);
     setSpeaking(true);
@@ -496,8 +558,25 @@ export default function PersonaCall() {
           blocked: res.blocked,
           sources: res.sources,
           safetyNotice: res.safety_notice,
+          ts: Date.now(),
         },
       ]);
+      // Bolhas reveladas uma a uma, com pausa proporcional ao tamanho da
+      // seguinte — como um amigo que continua a escrever.
+      const chunks = splitIntoBubbles(res.reply);
+      if (chunks.length > 1 && !res.blocked) {
+        setRevealShown(1);
+        let acc = 0;
+        for (let i = 1; i < chunks.length; i++) {
+          acc += Math.min(700 + chunks[i].length * 14, 2600);
+          const shown = i + 1;
+          revealTimersRef.current.push(
+            window.setTimeout(() => {
+              setRevealShown(shown >= chunks.length ? null : shown);
+            }, acc)
+          );
+        }
+      }
       if (res.audio_url && !mutedRef.current) {
         // Mantém a animação de "a falar" enquanto o áudio toca mesmo,
         // não só até a resposta HTTP chegar — dá sensação de conversa real.
@@ -706,28 +785,62 @@ export default function PersonaCall() {
                 : undefined
             }
           >
-            {messages.map((m, i) => (
-              <div key={i} className={`chat-row chat-row-${m.role}`}>
-                {m.role === "assistant" && (
-                  <Avatar assetPath={target.avatarAsset} name={target.display_name} className="chat-avatar" />
-                )}
-                <div className={`chat-bubble chat-bubble-${m.role} ${m.blocked ? "chat-bubble-blocked" : ""}`}>
-                  {m.text}
-                  {m.safetyNotice && (
-                    <p className="safety-notice" role="note">
-                      {m.safetyNotice}
-                    </p>
-                  )}
-                  {m.role === "assistant" && !m.blocked && m.sources !== undefined && (
-                    <MessageRoots sources={m.sources} />
-                  )}
-                  {m.role === "assistant" && !m.blocked && lastUserQuestionBefore(i) !== null && (
-                    <OtherPerspectives options={others} question={lastUserQuestionBefore(i)!} />
-                  )}
+            {messages.map((m, i) => {
+              // Respostas do mentor aparecem como 2-4 mensagens curtas
+              // seguidas (estilo WhatsApp); a última resposta revela-se
+              // bolha a bolha com "a escrever…" pelo meio.
+              const fullChunks =
+                m.role === "assistant" && !m.blocked ? splitIntoBubbles(m.text) : [m.text];
+              const isRevealTarget =
+                i === messages.length - 1 && m.role === "assistant" && revealShown !== null;
+              const shownChunks = isRevealTarget
+                ? fullChunks.slice(0, Math.min(revealShown, fullChunks.length))
+                : fullChunks;
+              return shownChunks.map((chunk, ci) => (
+                <div key={`${i}-${ci}`} className={`chat-row chat-row-${m.role}`}>
+                  {m.role === "assistant" &&
+                    (ci === 0 ? (
+                      <Avatar
+                        assetPath={target.avatarAsset}
+                        name={target.display_name}
+                        className="chat-avatar"
+                      />
+                    ) : (
+                      <span className="chat-avatar chat-avatar-spacer" aria-hidden="true" />
+                    ))}
+                  <div className={`chat-bubble chat-bubble-${m.role} ${m.blocked ? "chat-bubble-blocked" : ""}`}>
+                    {chunk}
+                    {ci === fullChunks.length - 1 && (
+                      <>
+                        {m.safetyNotice && (
+                          <p className="safety-notice" role="note">
+                            {m.safetyNotice}
+                          </p>
+                        )}
+                        {m.role === "assistant" && !m.blocked && m.sources !== undefined && (
+                          <MessageRoots sources={m.sources} />
+                        )}
+                        {m.role === "assistant" && !m.blocked && lastUserQuestionBefore(i) !== null && (
+                          <OtherPerspectives options={others} question={lastUserQuestionBefore(i)!} />
+                        )}
+                      </>
+                    )}
+                    {m.ts !== undefined && (
+                      <span className="bubble-meta">
+                        {formatBubbleTime(m.ts)}
+                        {m.role === "user" && (
+                          <span className="bubble-ticks" aria-hidden="true">
+                            ✓✓
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-            {sending && !listening && (
+              ));
+            })}
+            {((sending && !listening) ||
+              (revealShown !== null && messages[messages.length - 1]?.role === "assistant")) && (
               <div className="chat-row chat-row-assistant">
                 <Avatar assetPath={target.avatarAsset} name={target.display_name} className="chat-avatar" />
                 <div className="chat-bubble chat-bubble-assistant chat-typing">
